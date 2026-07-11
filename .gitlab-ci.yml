@@ -1,0 +1,97 @@
+# GitLab CI/CD pipeline for Rewind.
+# Stages: lint → test → build-ui → integration → release
+
+image: golang:1.25
+
+variables:
+  CGO_ENABLED: "0"
+  GOPATH: "$CI_PROJECT_DIR/.go"
+  GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
+
+cache:
+  paths:
+    - .go/pkg/mod/
+  key:
+    files:
+      - go.sum
+
+stages:
+  - lint
+  - test
+  - build
+  - integration
+  - release
+
+# ─── Lint ─────────────────────────────────────────────────────────────────────
+golangci-lint:
+  stage: lint
+  image: golangci/golangci-lint:v1.64
+  script:
+    - golangci-lint run --timeout=5m ./...
+  allow_failure: false
+
+go-vet:
+  stage: lint
+  script:
+    - go vet ./...
+
+# ─── Test ─────────────────────────────────────────────────────────────────────
+unit-tests:
+  stage: test
+  script:
+    - go test -count=1 -timeout=120s -coverprofile=coverage.out
+        -coverpkg=./internal/model/...,./internal/analyze/...,./internal/bundle/...
+        ./...
+    - go tool cover -func=coverage.out | tail -1
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage.out
+    expire_in: 1 week
+
+# ─── Build ────────────────────────────────────────────────────────────────────
+build-binary:
+  stage: build
+  script:
+    - mkdir -p bin
+    - go build -trimpath
+        -ldflags "-s -w -X github.com/rewind-io/rewind/internal/cli.rewindVersion=${CI_COMMIT_TAG:-dev}"
+        -o bin/rewind ./cmd/rewind
+    - ./bin/rewind version
+  artifacts:
+    paths:
+      - bin/rewind
+    expire_in: 1 day
+
+# ─── Integration ──────────────────────────────────────────────────────────────
+# Requires Docker-in-Docker; disabled until Phase 3+.
+# integration-tests:
+#   stage: integration
+#   tags: [dind]
+#   variables:
+#     DOCKER_HOST: tcp://docker:2376
+#   services:
+#     - docker:dind
+#   script:
+#     - go test -count=1 -timeout=300s -tags integration ./...
+
+# ─── Release ──────────────────────────────────────────────────────────────────
+goreleaser:
+  stage: release
+  image:
+    name: goreleaser/goreleaser:v2
+    entrypoint: [""]
+  only:
+    - tags
+  variables:
+    GIT_DEPTH: 0  # goreleaser needs full history for changelog
+  script:
+    - goreleaser release --clean
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 30 days

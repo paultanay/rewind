@@ -1,0 +1,48 @@
+# rewind.yaml — example configuration
+# Copy to rewind.yaml (gitignored) and fill in your endpoints.
+# All values can also be set via REWIND_* environment variables.
+# Example: REWIND_PROMETHEUS_URL=http://prom:9090
+
+# Per-source collection timeout. Increase for slow or remote systems.
+source_timeout: 15s
+
+prometheus:
+  url: http://localhost:9090
+  # Optional extra headers (for auth proxies, etc.)
+  # headers:
+  #   Authorization: "Bearer ${PROMETHEUS_TOKEN}"
+  disabled: false
+
+loki:
+  url: http://localhost:3100
+  disabled: false
+
+kubernetes:
+  # Path to kubeconfig. Defaults to $KUBECONFIG or ~/.kube/config.
+  # kubeconfig: ~/.kube/config
+  # Context to use (defaults to current-context).
+  # context: prod-cluster
+  disabled: false
+
+tempo:
+  url: http://localhost:3200
+  disabled: false
+
+github:
+  # Token needs: repo scope (read access to deployments/workflows)
+  token: "${GITHUB_TOKEN}"
+  repos:
+    - myorg/checkout
+    - myorg/frontend
+  disabled: false
+
+gitlab:
+  url: https://gitlab.com
+  token: "${GITLAB_TOKEN}"
+  projects:
+    - mygroup/checkout
+  disabled: false
+
+alertmanager:
+  url: http://localhost:9093
+  disabled: false

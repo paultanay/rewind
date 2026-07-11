@@ -1,0 +1,32 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.test
+
+# Go build cache
+*.out
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Config with credentials (local overrides only; the public rewind.yaml.example is committed)
+rewind.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (web UI build artifacts in Phase 6)
+ui/node_modules/
+ui/dist/
+ui/.svelte-kit/
+
+# Temp
+*.tmp
+*.bak

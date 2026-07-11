@@ -1,0 +1,75 @@
+# golangci-lint configuration for Rewind.
+# Run: golangci-lint run ./...
+# Docs: https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck        # check that errors are handled
+    - govet           # go vet checks
+    - staticcheck     # advanced static analysis (SA, S1, ST1, QF)
+    - revive          # opinionated linter — replaces golint
+    - gosec           # security checks
+    - gocritic        # additional code style checks
+    - misspell        # spell check in comments and strings
+    - unused          # find unused code
+    - gofmt           # enforce gofmt formatting
+    - goimports       # enforce goimports formatting
+    - bodyclose       # check http response body is closed
+    - noctx           # find http requests without context
+    - exhaustive      # check exhaustiveness of enum switch statements
+    - godot           # check comment endings
+    - whitespace      # detect leading/trailing whitespace in block statements
+    - wrapcheck       # ensure errors from external packages are wrapped
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # struct field alignment — opt-in per package
+
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
+
+  gosec:
+    excludes:
+      - G304  # file path from variable — we accept this in bundle I/O
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - ifElseChain
+
+  misspell:
+    locale: US
+
+  exhaustive:
+    default-signifies-exhaustive: true
+
+  wrapcheck:
+    ignoreSigs:
+      - fmt.Errorf(
+
+issues:
+  max-same-issues: 0
+  exclude-rules:
+    # Test files can use assert-style helpers without wrapping errors.
+    - path: "_test\\.go"
+      linters:
+        - wrapcheck
+        - gosec
+        - errcheck
+
+    # Generated or embedded files.
+    - path: "ui/"
+      linters:
+        - all

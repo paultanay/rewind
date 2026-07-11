@@ -2,17 +2,20 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/rewind-io/rewind/internal/analyze"
 	"github.com/rewind-io/rewind/internal/bundle"
 	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/render/terminal"
 	mdrender "github.com/rewind-io/rewind/internal/render/markdown"
+	"github.com/rewind-io/rewind/internal/render/terminal"
 	"github.com/rewind-io/rewind/internal/sources"
+	prom "github.com/rewind-io/rewind/internal/sources/prometheus"
 )
 
 type investigateFlags struct {
@@ -23,6 +26,8 @@ type investigateFlags struct {
 	format     string
 	output     string
 	replay     string
+	width      int
+	noColor    bool
 }
 
 func newInvestigateCmd() *cobra.Command {
@@ -44,13 +49,24 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.from, "from", "-1h", "start of investigation window (RFC3339, HH:MM, or -45m)")
-	cmd.Flags().StringVar(&flags.to, "to", "now", "end of investigation window")
-	cmd.Flags().StringSliceVarP(&flags.namespaces, "namespace", "n", nil, "Kubernetes namespace(s) to scope")
-	cmd.Flags().StringSliceVarP(&flags.services, "service", "s", nil, "service name(s) to scope")
-	cmd.Flags().StringVar(&flags.format, "format", "term", "output format: term|md|json")
-	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "write bundle to this path (e.g. incident.rewind)")
-	cmd.Flags().StringVar(&flags.replay, "replay", "", "re-run analysis on a previously exported bundle")
+	cmd.Flags().StringVar(&flags.from, "from", "-1h",
+		"start of investigation window (RFC3339, HH:MM, HH:MM:SS, or -45m)")
+	cmd.Flags().StringVar(&flags.to, "to", "now",
+		"end of investigation window (same formats as --from, or 'now')")
+	cmd.Flags().StringSliceVarP(&flags.namespaces, "namespace", "n", nil,
+		"Kubernetes namespace(s) to scope")
+	cmd.Flags().StringSliceVarP(&flags.services, "service", "s", nil,
+		"service name(s) to scope (empty = all services in namespace)")
+	cmd.Flags().StringVar(&flags.format, "format", "term",
+		"output format: term|md|json")
+	cmd.Flags().StringVarP(&flags.output, "output", "o", "",
+		"write .rewind bundle to this path")
+	cmd.Flags().StringVar(&flags.replay, "replay", "",
+		"re-run analysis on a previously exported bundle (offline)")
+	cmd.Flags().IntVar(&flags.width, "width", 120,
+		"terminal column width for term output")
+	cmd.Flags().BoolVar(&flags.noColor, "no-color", false,
+		"disable ANSI colour output")
 
 	return cmd
 }
@@ -90,42 +106,60 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitInternalError)
 	}
-	_ = cfg // Used when collectors are wired in Phase 2+
 
 	var inc model.Incident
 
 	if flags.replay != "" {
-		// ── Replay mode: load bundle, re-run analysis ────────────────────────
-		b, err := bundle.Import(flags.replay)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: loading bundle: %v\n", err)
+		// ── Replay mode: load bundle, re-run analysis on bundled raw data ────
+		b, loadErr := bundle.Import(flags.replay)
+		if loadErr != nil {
+			fmt.Fprintf(os.Stderr, "error: loading bundle %q: %v\n", flags.replay, loadErr)
 			os.Exit(ExitInternalError)
 		}
 		inc = b.Incident
-		fmt.Fprintf(os.Stderr, "replaying bundle %s\n", flags.replay)
+		fmt.Fprintf(os.Stderr, "replaying %s (window %s → %s)\n",
+			flags.replay,
+			inc.Window.From.Format("15:04:05"),
+			inc.Window.To.Format("15:04:05"),
+		)
+		// Re-run analysis with the current version of the engine.
+		inc = analyze.Run(inc)
 	} else {
 		// ── Live collection ──────────────────────────────────────────────────
-		// In Phase 1 the collector registry is empty; we build the skeleton
-		// incident so all downstream rendering/bundle code is exercised.
-		// Phase 2 wires in real collectors.
-		reg := &sources.Registry{}
-		_ = reg // collectors registered in Phase 2
+		reg := buildRegistry(cfg)
 
+		fmt.Fprintf(os.Stderr, "collecting from %d source(s)…\n", reg.Len())
 		runResult := sources.RunAll(ctx, reg.All(), scope, window, cfg.SourceTimeout)
 
-		allSourcesFailed := true
+		// Print per-source status to stderr so stdout stays clean for piping.
 		for _, r := range runResult.Reports {
-			if r.Status != model.SourceStatusFailed {
-				allSourcesFailed = false
-				break
+			switch r.Status {
+			case model.SourceStatusOK:
+				fmt.Fprintf(os.Stderr, "  ✓ %-16s %devt  %dsig  %s\n",
+					r.Name, r.EventCount, r.SignalCount, r.Duration)
+			case model.SourceStatusFailed:
+				fmt.Fprintf(os.Stderr, "  ✗ %-16s %s\n", r.Name, r.Error)
+			default:
+				fmt.Fprintf(os.Stderr, "  - %-16s skipped\n", r.Name)
 			}
 		}
-		// Only error on all-sources-failed if we had at least one source configured.
-		if allSourcesFailed && len(runResult.Reports) > 0 {
-			fmt.Fprintln(os.Stderr, "error: all configured sources failed")
-			os.Exit(ExitAllSourcesFailed)
+
+		// All-sources-failed is a hard error only when sources were configured.
+		if reg.Len() > 0 {
+			allFailed := true
+			for _, r := range runResult.Reports {
+				if r.Status == model.SourceStatusOK || r.Status == model.SourceStatusPartial {
+					allFailed = false
+					break
+				}
+			}
+			if allFailed {
+				fmt.Fprintln(os.Stderr, "error: all configured sources failed")
+				os.Exit(ExitAllSourcesFailed)
+			}
 		}
 
+		// Build the initial incident model from collected data.
 		inc = model.Incident{
 			ID:       model.NewIncidentID(now),
 			Window:   window,
@@ -141,13 +175,17 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 			},
 		}
 
-		// Analysis engine (Phase 4) will fill Verdict here.
-		// For Phase 1 we leave it nil — the renderer handles that gracefully.
+		// ── Analysis pipeline ────────────────────────────────────────────────
+		// Phase 2: change-point detection on all signals.
+		// Phase 4 will add correlation and verdict generation here.
+		inc = analyze.Run(inc)
 
 		// ── Bundle export ────────────────────────────────────────────────────
 		if flags.output != "" {
-			if err := bundle.Export(inc, runResult.RawSources, flags.output); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: bundle export failed: %v\n", err)
+			if exportErr := bundle.Export(inc, runResult.RawSources, flags.output); exportErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: bundle export failed: %v\n", exportErr)
+			} else {
+				fmt.Fprintf(os.Stderr, "bundle written → %s\n", flags.output)
 			}
 		}
 	}
@@ -155,33 +193,66 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 	// ── Render ───────────────────────────────────────────────────────────────
 	switch flags.format {
 	case "term", "":
-		if err := terminal.Render(os.Stdout, inc, terminal.Options{Width: 120}); err != nil {
-			return fmt.Errorf("render: %w", err)
+		renderErr := terminal.Render(os.Stdout, inc, terminal.Options{
+			Width:   flags.width,
+			NoColor: flags.noColor,
+		})
+		if renderErr != nil {
+			return fmt.Errorf("render: %w", renderErr)
 		}
 	case "md":
-		if err := mdrender.Render(os.Stdout, inc); err != nil {
-			return fmt.Errorf("render: %w", err)
+		if renderErr := mdrender.Render(os.Stdout, inc); renderErr != nil {
+			return fmt.Errorf("render: %w", renderErr)
 		}
 	case "json":
-		// TODO(Phase 1+): add JSON renderer
-		fmt.Fprintln(os.Stderr, "json format not yet implemented")
-		os.Exit(ExitUsageError)
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if renderErr := enc.Encode(inc); renderErr != nil {
+			return fmt.Errorf("render json: %w", renderErr)
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "error: unknown format %q (term|md|json)\n", flags.format)
 		os.Exit(ExitUsageError)
 	}
 
-	// ── Exit code based on findings ──────────────────────────────────────────
+	// ── Exit code based on findings (contractual per §13) ────────────────────
+	// Exit 1 when Critical findings exist so CI pipelines can gate on it.
 	for _, e := range inc.Events {
 		if e.Severity == model.SeverityCritical {
 			os.Exit(ExitCriticalFindings)
 		}
 	}
-	if inc.Verdict != nil && len(inc.Verdict.Hypotheses) > 0 {
-		if inc.Verdict.Hypotheses[0].Confidence == model.ConfidenceHigh {
-			os.Exit(ExitCriticalFindings)
+	for _, sig := range inc.Signals {
+		for _, cp := range sig.ChangePoints {
+			if cp.Score >= 0.8 {
+				os.Exit(ExitCriticalFindings)
+			}
 		}
+	}
+	if inc.Verdict != nil && len(inc.Verdict.Hypotheses) > 0 &&
+		inc.Verdict.Hypotheses[0].Confidence == model.ConfidenceHigh {
+		os.Exit(ExitCriticalFindings)
 	}
 
 	return nil
+}
+
+// buildRegistry constructs and returns a registry populated with all
+// enabled collectors from the loaded config. Disabled sources are skipped
+// without error — the user explicitly opted out.
+func buildRegistry(cfg *Config) *sources.Registry {
+	reg := &sources.Registry{}
+
+	if !cfg.Prometheus.Disabled && cfg.Prometheus.URL != "" {
+		reg.Register(&prom.Collector{
+			URL:     cfg.Prometheus.URL,
+			Headers: cfg.Prometheus.Headers,
+			Version: rewindVersion,
+		})
+	}
+
+	// Phase 3: Kubernetes, CI/CD collectors registered here.
+	// Phase 5: Loki, Tempo, Alertmanager registered here.
+
+	return reg
 }

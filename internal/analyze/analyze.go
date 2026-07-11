@@ -11,6 +11,7 @@ import (
 	"math"
 
 	"github.com/rewind-io/rewind/internal/analyze/changepoint"
+	"github.com/rewind-io/rewind/internal/analyze/correlate"
 	"github.com/rewind-io/rewind/internal/analyze/topology"
 	"github.com/rewind-io/rewind/internal/model"
 )
@@ -37,15 +38,17 @@ func RunFull(inc model.Incident) RunResult {
 	inc.Signals = detectChangePoints(inc.Signals)
 
 	// ── Phase 3: topology graph ───────────────────────────────────────────────
-	// Build once; the correlation engine (Phase 4) receives it via RunResult.
+	// Build once; the correlation engine receives it via RunResult.
 	graph := topology.Build(inc.Entities)
 
-	// ── Phase 4 placeholder: verdict engine ───────────────────────────────────
-	// inc.Verdict = correlate.Run(inc, graph)
-	_ = graph // used in Phase 4
+	// ── Phase 4: correlation engine + verdict ─────────────────────────────────
+	// correlate.Run applies all 10 rules, coalesces CrashLoop events (RW009),
+	// assembles causal chains, calibrates confidence, and returns a ranked Verdict.
+	inc.Verdict = correlate.Run(inc, graph)
 
 	return RunResult{Incident: inc, Graph: graph}
 }
+
 
 // detectChangePoints runs both detectors on each signal and attaches the
 // merged, capped change-point list.

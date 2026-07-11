@@ -181,3 +181,118 @@ func nsOf(id string) string {
 	}
 	return ""
 }
+
+// Distance returns the shortest-path hop count between two entities in the
+// undirected ownership+call graph. Returns math.MaxInt if no path exists.
+// Same entity → 0. Direct parent/child → 1.
+func (g *Graph) Distance(fromID, toID string) int {
+	if fromID == toID {
+		return 0
+	}
+	// BFS over the bidirectional ownership graph + call edges.
+	type entry struct {
+		id   string
+		dist int
+	}
+	visited := map[string]bool{fromID: true}
+	queue := []entry{{fromID, 0}}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, nb := range g.neighbors(cur.id) {
+			if nb == toID {
+				return cur.dist + 1
+			}
+			if !visited[nb] {
+				visited[nb] = true
+				queue = append(queue, entry{nb, cur.dist + 1})
+			}
+		}
+	}
+	return maxInt
+}
+
+// maxInt is the sentinel for "no path" in Distance.
+const maxInt = int(^uint(0) >> 1)
+
+// Reachable reports whether toID is reachable from fromID following directed
+// ownership edges (parent→child) and call edges (caller→callee).
+func (g *Graph) Reachable(fromID, toID string) bool {
+	if fromID == toID {
+		return true
+	}
+	visited := map[string]bool{fromID: true}
+	queue := []string{fromID}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, nb := range g.directedNeighbors(cur) {
+			if nb == toID {
+				return true
+			}
+			if !visited[nb] {
+				visited[nb] = true
+				queue = append(queue, nb)
+			}
+		}
+	}
+	return false
+}
+
+// Adjacent returns all entity IDs directly connected to id in the undirected
+// ownership+call graph (parent, children, call peers).
+func (g *Graph) Adjacent(id string) []string {
+	return g.neighbors(id)
+}
+
+// neighbors returns all undirected (bidirectional) neighbors of id.
+func (g *Graph) neighbors(id string) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(nb string) {
+		if nb != "" && !seen[nb] {
+			seen[nb] = true
+			out = append(out, nb)
+		}
+	}
+	// Parent
+	if p := g.parents[id]; p != "" {
+		add(p)
+	}
+	// Children
+	for _, c := range g.children[id] {
+		add(c)
+	}
+	// Call edges (both directions)
+	for _, callee := range g.callEdges[id] {
+		add(callee)
+	}
+	for caller, callees := range g.callEdges {
+		for _, callee := range callees {
+			if callee == id {
+				add(caller)
+			}
+		}
+	}
+	return out
+}
+
+// directedNeighbors returns children and call-graph callees of id (directed).
+func (g *Graph) directedNeighbors(id string) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(nb string) {
+		if nb != "" && !seen[nb] {
+			seen[nb] = true
+			out = append(out, nb)
+		}
+	}
+	for _, c := range g.children[id] {
+		add(c)
+	}
+	for _, callee := range g.callEdges[id] {
+		add(callee)
+	}
+	return out
+}
+

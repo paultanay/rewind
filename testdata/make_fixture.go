@@ -69,7 +69,7 @@ func badDeploy() model.Incident {
 		Events: []model.Event{
 			{
 				ID: "evt-deploy", At: base, Kind: model.EventKindDeploy,
-				EntityID: "deploy/shop/checkout", Severity: model.SeverityNotable,
+				EntityID: "svc/shop/checkout", Severity: model.SeverityNotable,
 				Title:  "Deployed checkout v2.3.1",
 				Detail: "Image: checkout:v2.3.1 (was v2.3.0)\nAuthor: alice\nCommit: a1b2c3d",
 				SourceRef: model.SourceRef{SourceName: "github",
@@ -77,7 +77,7 @@ func badDeploy() model.Incident {
 			},
 			{
 				ID: "evt-oom", At: base.Add(80 * time.Second), Kind: model.EventKindOOMKill,
-				EntityID: "deploy/shop/checkout", Severity: model.SeverityCritical,
+				EntityID: "svc/shop/checkout", Severity: model.SeverityCritical,
 				Title: "OOMKilled: checkout-7d9f-abc12",
 			},
 		},

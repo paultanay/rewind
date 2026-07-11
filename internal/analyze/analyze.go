@@ -2,24 +2,49 @@
 // sub-packages (changepoint, topology, correlate, verdict) and exposes a
 // single Run function that the CLI calls.
 //
-// Phase 2 implements: change-point detection over all signals.
-// Phase 3 adds: topology graph construction.
-// Phase 4 adds: correlation rules and verdict generation.
+// Phase 2: change-point detection on all signals.
+// Phase 3: topology graph construction from collected entities.
+// Phase 4: correlation rules RW001–RW010, verdict generation.
 package analyze
 
 import (
 	"math"
 
 	"github.com/rewind-io/rewind/internal/analyze/changepoint"
+	"github.com/rewind-io/rewind/internal/analyze/topology"
 	"github.com/rewind-io/rewind/internal/model"
 )
 
-// Run executes the full analysis pipeline on the incident and returns an
-// updated copy with Signals populated with ChangePoints.
-// In Phase 2 only change-point detection is implemented; Verdict remains nil.
+// RunResult extends the base Incident with the topology graph produced during
+// analysis. The graph is passed to the correlation engine in Phase 4.
+type RunResult struct {
+	Incident model.Incident
+	// Graph is the entity topology built from Incident.Entities. Callers that
+	// only care about the updated Incident can ignore this field.
+	Graph *topology.Graph
+}
+
+// Run executes the full analysis pipeline and returns an updated Incident.
+// It is a convenience wrapper around RunFull that discards the RunResult.
 func Run(inc model.Incident) model.Incident {
+	return RunFull(inc).Incident
+}
+
+// RunFull executes the full analysis pipeline and returns both the updated
+// Incident and the topology graph. Used by Phase 4 correlation engine.
+func RunFull(inc model.Incident) RunResult {
+	// ── Phase 2: change-point detection ──────────────────────────────────────
 	inc.Signals = detectChangePoints(inc.Signals)
-	return inc
+
+	// ── Phase 3: topology graph ───────────────────────────────────────────────
+	// Build once; the correlation engine (Phase 4) receives it via RunResult.
+	graph := topology.Build(inc.Entities)
+
+	// ── Phase 4 placeholder: verdict engine ───────────────────────────────────
+	// inc.Verdict = correlate.Run(inc, graph)
+	_ = graph // used in Phase 4
+
+	return RunResult{Incident: inc, Graph: graph}
 }
 
 // detectChangePoints runs both detectors on each signal and attaches the

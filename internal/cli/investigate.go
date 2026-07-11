@@ -15,6 +15,8 @@ import (
 	mdrender "github.com/rewind-io/rewind/internal/render/markdown"
 	"github.com/rewind-io/rewind/internal/render/terminal"
 	"github.com/rewind-io/rewind/internal/sources"
+	"github.com/rewind-io/rewind/internal/sources/cicd"
+	k8s "github.com/rewind-io/rewind/internal/sources/kubernetes"
 	prom "github.com/rewind-io/rewind/internal/sources/prometheus"
 )
 
@@ -243,6 +245,7 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 func buildRegistry(cfg *Config) *sources.Registry {
 	reg := &sources.Registry{}
 
+	// ── Prometheus ───────────────────────────────────────────────────────────
 	if !cfg.Prometheus.Disabled && cfg.Prometheus.URL != "" {
 		reg.Register(&prom.Collector{
 			URL:     cfg.Prometheus.URL,
@@ -251,7 +254,37 @@ func buildRegistry(cfg *Config) *sources.Registry {
 		})
 	}
 
-	// Phase 3: Kubernetes, CI/CD collectors registered here.
+	// ── Kubernetes ───────────────────────────────────────────────────────────
+	if !cfg.Kubernetes.Disabled {
+		reg.Register(&k8s.Collector{
+			KubeconfigPath: cfg.Kubernetes.Kubeconfig,
+			ContextName:    cfg.Kubernetes.Context,
+			Version:        rewindVersion,
+		})
+	}
+
+	// ── CI/CD (GitHub + GitLab) ──────────────────────────────────────────────
+	// Register even if only one provider is configured; the collector skips
+	// whichever provider has no credentials/repos.
+	hasGitHub := !cfg.GitHub.Disabled && cfg.GitHub.Token != "" && len(cfg.GitHub.Repos) > 0
+	hasGitLab := !cfg.GitLab.Disabled && cfg.GitLab.Token != "" && len(cfg.GitLab.Projects) > 0
+	if hasGitHub || hasGitLab {
+		reg.Register(&cicd.Collector{
+			GitHub: cicd.GitHubConfig{
+				Token:    cfg.GitHub.Token,
+				Repos:    cfg.GitHub.Repos,
+				Disabled: cfg.GitHub.Disabled,
+			},
+			GitLab: cicd.GitLabConfig{
+				BaseURL:  cfg.GitLab.URL,
+				Token:    cfg.GitLab.Token,
+				Projects: cfg.GitLab.Projects,
+				Disabled: cfg.GitLab.Disabled,
+			},
+			Version: rewindVersion,
+		})
+	}
+
 	// Phase 5: Loki, Tempo, Alertmanager registered here.
 
 	return reg

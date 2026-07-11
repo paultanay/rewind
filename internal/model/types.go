@@ -92,8 +92,10 @@ const (
 	MetricDiskIO       = "disk.io"
 	MetricNetworkRecv  = "network.recv"
 	MetricNetworkSend  = "network.send"
-	MetricLogErrorRate = "log.error.rate"
-	MetricTraceErrRate = "trace.error.rate"
+	MetricLogErrorRate   = "log.error.rate"
+	MetricTraceErrRate   = "trace.error.rate" // legacy alias
+	MetricTraceErrorRate = "trace.error.rate"
+	MetricTraceLatencyP99 = "trace.latency.p99"
 )
 
 // ─── Primary domain types ─────────────────────────────────────────────────────

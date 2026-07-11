@@ -15,9 +15,12 @@ import (
 	mdrender "github.com/rewind-io/rewind/internal/render/markdown"
 	"github.com/rewind-io/rewind/internal/render/terminal"
 	"github.com/rewind-io/rewind/internal/sources"
+	"github.com/rewind-io/rewind/internal/sources/alertmanager"
 	"github.com/rewind-io/rewind/internal/sources/cicd"
 	k8s "github.com/rewind-io/rewind/internal/sources/kubernetes"
+	"github.com/rewind-io/rewind/internal/sources/loki"
 	prom "github.com/rewind-io/rewind/internal/sources/prometheus"
+	"github.com/rewind-io/rewind/internal/sources/tempo"
 )
 
 type investigateFlags struct {
@@ -285,7 +288,37 @@ func buildRegistry(cfg *Config) *sources.Registry {
 		})
 	}
 
-	// Phase 5: Loki, Tempo, Alertmanager registered here.
+	// ── Loki (Phase 5) ───────────────────────────────────────────────────────
+	if !cfg.Loki.Disabled && cfg.Loki.URL != "" {
+		reg.Register(loki.New(loki.Config{
+			URL:            cfg.Loki.URL,
+			TenantID:       cfg.Loki.TenantID,
+			Username:       cfg.Loki.Username,
+			Password:       cfg.Loki.Password,
+			GrafanaBaseURL: cfg.Loki.GrafanaBaseURL,
+			MaxSampleLines: cfg.Loki.MaxSampleLines,
+		}, rewindVersion))
+	}
+
+	// ── Tempo (Phase 5) ──────────────────────────────────────────────────────
+	if !cfg.Tempo.Disabled && cfg.Tempo.URL != "" {
+		reg.Register(tempo.New(tempo.Config{
+			URL:            cfg.Tempo.URL,
+			TenantID:       cfg.Tempo.TenantID,
+			Username:       cfg.Tempo.Username,
+			Password:       cfg.Tempo.Password,
+			GrafanaBaseURL: cfg.Tempo.GrafanaBaseURL,
+		}, rewindVersion))
+	}
+
+	// ── Alertmanager (Phase 5) ────────────────────────────────────────────────
+	if !cfg.AlertMgr.Disabled && cfg.AlertMgr.URL != "" {
+		reg.Register(alertmanager.New(alertmanager.Config{
+			URL:      cfg.AlertMgr.URL,
+			Username: cfg.AlertMgr.Username,
+			Password: cfg.AlertMgr.Password,
+		}, rewindVersion))
+	}
 
 	return reg
 }

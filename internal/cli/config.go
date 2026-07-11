@@ -37,9 +37,13 @@ type PrometheusConfig struct {
 }
 
 type LokiConfig struct {
-	URL      string            `mapstructure:"url"`
-	Headers  map[string]string `mapstructure:"headers"`
-	Disabled bool              `mapstructure:"disabled"`
+	URL            string `mapstructure:"url"`
+	TenantID       string `mapstructure:"tenant_id"`
+	Username       string `mapstructure:"username"`
+	Password       string `mapstructure:"password"`
+	GrafanaBaseURL string `mapstructure:"grafana_base_url"`
+	MaxSampleLines int    `mapstructure:"max_sample_lines"`
+	Disabled       bool   `mapstructure:"disabled"`
 }
 
 type KubernetesConfig struct {
@@ -49,9 +53,12 @@ type KubernetesConfig struct {
 }
 
 type TempoConfig struct {
-	URL      string            `mapstructure:"url"`
-	Headers  map[string]string `mapstructure:"headers"`
-	Disabled bool              `mapstructure:"disabled"`
+	URL            string `mapstructure:"url"`
+	TenantID       string `mapstructure:"tenant_id"`
+	Username       string `mapstructure:"username"`
+	Password       string `mapstructure:"password"`
+	GrafanaBaseURL string `mapstructure:"grafana_base_url"`
+	Disabled       bool   `mapstructure:"disabled"`
 }
 
 type GitHubConfig struct {
@@ -68,9 +75,10 @@ type GitLabConfig struct {
 }
 
 type AlertManagerConfig struct {
-	URL      string            `mapstructure:"url"`
-	Headers  map[string]string `mapstructure:"headers"`
-	Disabled bool              `mapstructure:"disabled"`
+	URL      string `mapstructure:"url"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	Disabled bool   `mapstructure:"disabled"`
 }
 
 // LoadConfig reads configuration from the given file path (or searches for

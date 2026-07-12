@@ -11,7 +11,7 @@ BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 # CGO disabled — single static binary, cross-compile friendly.
 export CGO_ENABLED=0
 
-.PHONY: all build test lint vet tidy clean install coverage help
+.PHONY: all build test race demo check build-all lint vet tidy clean install coverage help
 
 all: build
 
@@ -28,9 +28,24 @@ install:
 test:
 	go test -count=1 -timeout 120s ./...
 
+## race: run all tests with the race detector
+race:
+	go test -race -count=1 -timeout 120s ./...
+
 ## test-v: run tests with verbose output
 test-v:
 	go test -count=1 -timeout 120s -v ./...
+
+## demo: run the offline demo (terminal output)
+demo: build
+	./bin/$(BINARY) demo
+
+## demo-all: run all 5 demo scenarios and verify none crash
+demo-all: build
+	@for s in bad-deploy oom-cascade node-pressure cpu-throttle false-positive; do \
+		echo "--- $$s ---"; \
+		./bin/$(BINARY) demo --scenario $$s >/dev/null && echo "ok" || true; \
+	done
 
 ## coverage: generate coverage report (HTML)
 coverage:
@@ -39,6 +54,19 @@ coverage:
 		./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+## check: vet + test + build (fast pre-commit check)
+check: vet test build
+	@echo "All checks passed."
+
+## build-all: cross-compile for all release platforms
+build-all:
+	GOOS=linux   GOARCH=amd64 go build $(BUILD_FLAGS) -o /dev/null ./cmd/rewind
+	GOOS=linux   GOARCH=arm64 go build $(BUILD_FLAGS) -o /dev/null ./cmd/rewind
+	GOOS=darwin  GOARCH=amd64 go build $(BUILD_FLAGS) -o /dev/null ./cmd/rewind
+	GOOS=darwin  GOARCH=arm64 go build $(BUILD_FLAGS) -o /dev/null ./cmd/rewind
+	GOOS=windows GOARCH=amd64 go build $(BUILD_FLAGS) -o /dev/null ./cmd/rewind
+	@echo "All platforms built successfully."
 
 ## lint: run golangci-lint
 lint:

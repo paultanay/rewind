@@ -22,6 +22,7 @@ func newDemoCmd() *cobra.Command {
 		scenario string
 		uiMode   bool
 		port     int
+		savePath string
 	)
 
 	cmd := &cobra.Command{
@@ -39,12 +40,14 @@ Available scenarios:
   false-positive Noisy alerts with no real causal trigger (0 High hypotheses)
 
 Examples:
-  rewind demo                           # bad-deploy, terminal output
-  rewind demo --scenario oom-cascade    # different scenario
-  rewind demo --ui                      # open in web browser
-  rewind demo --ui --port 8080          # custom port`,
+  rewind demo                                    # bad-deploy, terminal
+  rewind demo --scenario oom-cascade             # different scenario
+  rewind demo --ui                               # open in web browser
+  rewind demo --save demo.rewind                 # export bundle
+  rewind demo --save demo.rewind --ui            # export then open UI
+  rewind ui demo.rewind                          # replay saved bundle`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDemo(cmd.Context(), scenario, uiMode, port)
+			return runDemo(cmd.Context(), scenario, uiMode, port, savePath)
 		},
 	}
 
@@ -52,20 +55,32 @@ Examples:
 		"scenario to replay: bad-deploy|oom-cascade|node-pressure|cpu-throttle|false-positive")
 	cmd.Flags().BoolVar(&uiMode, "ui", false, "open the web UI instead of terminal output")
 	cmd.Flags().IntVar(&port, "port", 7750, "port for --ui mode (0 = random)")
+	cmd.Flags().StringVar(&savePath, "save", "",
+		"export the demo incident as a .rewind bundle to this path")
 	return cmd
 }
 
-func runDemo(ctx context.Context, scenario string, uiMode bool, port int) error {
+func runDemo(ctx context.Context, scenario string, uiMode bool, port int, savePath string) error {
 	inc, err := buildDemoIncident(scenario)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitUsageError)
 	}
 
-	// Re-run the analysis engine on the demo data.
+	// Re-run the full analysis engine on the demo data.
 	inc = analyze.Run(inc)
 
 	fmt.Fprintf(os.Stderr, "\n  ⏪  rewind demo — scenario: %s\n\n", scenario)
+
+	// Export bundle if --save was specified.
+	if savePath != "" {
+		if exportErr := bundle.Export(inc, nil, savePath); exportErr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: bundle export failed: %v\n", exportErr)
+		} else {
+			fmt.Fprintf(os.Stderr, "  bundle saved → %s\n", savePath)
+			fmt.Fprintf(os.Stderr, "  replay with: rewind ui %s\n\n", savePath)
+		}
+	}
 
 	if uiMode {
 		srv, err := server.New(inc, port)
@@ -73,7 +88,7 @@ func runDemo(ctx context.Context, scenario string, uiMode bool, port int) error 
 			return fmt.Errorf("demo ui: %w", err)
 		}
 		url := "http://" + srv.Addr()
-		fmt.Fprintf(os.Stderr, "     → %s\n\n", url)
+		fmt.Fprintf(os.Stderr, "  UI → %s\n", url)
 		fmt.Fprintf(os.Stderr, "  Press Ctrl+C to stop.\n\n")
 		openBrowser(url)
 		ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -194,23 +209,50 @@ func oomCascadeScenario(base time.Time, window model.TimeRange, meta model.Meta)
 			{ID: "ev-oom-4", At: base.Add(13 * time.Minute), Kind: model.EventKindRestart,
 				EntityID: pod, Severity: model.SeverityNotable,
 				Title: "Pod restarted (restart #3)", SourceRef: model.SourceRef{SourceName: "kubernetes"}},
+			{ID: "ev-oom-5", At: base.Add(14 * time.Minute), Kind: model.EventKindAlertFired,
+				EntityID: svc, Severity: model.SeverityCritical,
+				Title:    "HighErrorRate: checkout error rate > 5%",
+				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 		},
 		Signals: []model.Signal{
+			// Memory signal on the pod: perfectly flat baseline then extreme step-change.
+			// 0.10 → 0.95 at t=3 ensures both CUSUM and PELT fire with score ≈0.95.
 			demoSignal("mem-"+pod, pod, model.MetricMemoryUsage, "ratio",
 				base, 45, func(i int) float64 {
-					if i < 8 { return 0.45 + float64(i)*0.054 } // rising
-					return 0.10 + float64(i%5)*0.08             // post-restart oscillation
+					switch {
+					case i < 3:
+						return 0.10 // flat, very low baseline
+					case i < 8:
+						return 0.10 + float64(i-3)*0.17 // rapid rise: 0.10→0.95
+					case i < 10:
+						return 0.22 // drops post-restart (counter reset)
+					default:
+						return 0.25 + float64(i%4)*0.04 // stable post-crash oscillation
+					}
 				}),
-			demoSignal("err-"+svc, svc, model.MetricErrorRate, "ratio",
+			// Error-rate on pod spikes sharply right after OOMKill (t=8 →0.40).
+			demoSignal("err-"+pod, pod, model.MetricErrorRate, "ratio",
 				base, 45, func(i int) float64 {
-					if i < 9 { return 0.001 }
-					if i < 16 { return 0.001 + float64(i-9)*0.04 }
-					return 0.24 - float64(i-16)*0.01
+					switch {
+					case i < 8:
+						return 0.001 // flat baseline
+					case i < 13:
+						return 0.001 + float64(i-8)*0.08 // sharp rise: 0.001→0.401
+					default:
+						return 0.38 - float64(i-13)*0.009
+					}
+				}),
+			// Restarts counter on svc for RW009 crash-loop detection.
+			demoSignal("rst-"+svc, svc, model.MetricRestarts, "count",
+				base, 45, func(i int) float64 {
+					if i < 9 { return 0 }
+					return float64(i - 8)
 				}),
 		},
 		Sources: []model.SourceReport{
-			{Name: "prometheus", Status: model.SourceStatusOK, EventCount: 0, SignalCount: 2, Duration: "1.1s"},
+			{Name: "prometheus", Status: model.SourceStatusOK, EventCount: 0, SignalCount: 3, Duration: "1.1s"},
 			{Name: "kubernetes", Status: model.SourceStatusOK, EventCount: 4, SignalCount: 0, Duration: "0.7s"},
+			{Name: "alertmanager", Status: model.SourceStatusOK, EventCount: 1, SignalCount: 0, Duration: "0.3s"},
 		},
 	}
 }
@@ -226,8 +268,11 @@ func nodePressureScenario(base time.Time, window model.TimeRange, meta model.Met
 		Scope: model.Scope{Namespaces: []string{"shop"}},
 		Entities: []model.Entity{
 			{ID: node, Kind: model.EntityKindNode, Labels: map[string]string{"node": "worker-2"}},
-			{ID: svc, Kind: model.EntityKindService, Labels: map[string]string{"app": "checkout"}},
-			{ID: pod, Kind: model.EntityKindPod, Labels: map[string]string{"app": "checkout", "node": "worker-2"}},
+			{ID: svc, Kind: model.EntityKindService, Labels: map[string]string{"app": "checkout", "namespace": "shop"}},
+			// Owner must be the node ID so topology.Build() wires node → pod edge,
+			// which RW006 traverses via ctx.Graph.Adjacent(nodeEvent.EntityID).
+			{ID: pod, Kind: model.EntityKindPod, Owner: node,
+				Labels: map[string]string{"app": "checkout", "node": "worker-2"}},
 		},
 		Events: []model.Event{
 			{ID: "ev-np-1", At: base.Add(3 * time.Minute), Kind: model.EventKindNodePressure,
@@ -237,20 +282,45 @@ func nodePressureScenario(base time.Time, window model.TimeRange, meta model.Met
 				SourceRef: model.SourceRef{SourceName: "kubernetes"}},
 			{ID: "ev-np-2", At: base.Add(4 * time.Minute), Kind: model.EventKindPodKilled,
 				EntityID: pod, Severity: model.SeverityNotable,
-				Title: "Pod evicted: checkout-7d9f-abc (node memory pressure)",
+				Title:     "Pod evicted: checkout-7d9f-abc (node memory pressure)",
+				Detail:    "Node: worker-2\nReason: Evicted (MemoryPressure)\nMessage: The node was low on resource: memory",
 				SourceRef: model.SourceRef{SourceName: "kubernetes"}},
+			{ID: "ev-np-3", At: base.Add(15 * time.Minute), Kind: model.EventKindAlertFired,
+				EntityID: svc, Severity: model.SeverityCritical,
+				Title:    "HighErrorRate: checkout > 10% for 5m",
+				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 		},
 		Signals: []model.Signal{
-			demoSignal("err-"+svc, svc, model.MetricErrorRate, "ratio",
+			// Error-rate on the pod entity: flat ~0 then abrupt jump at t=4.
+			// 0.001 → 0.45 in 5 steps — magnitude >100x — guaranteed CP.
+			demoSignal("err-"+pod, pod, model.MetricErrorRate, "ratio",
 				base, 45, func(i int) float64 {
-					if i < 4 { return 0.001 }
-					if i < 12 { return float64(i-4) * 0.03 }
-					return 0.18 - float64(i-12)*0.005
+					switch {
+					case i < 4:
+						return 0.001 // flat baseline
+					case i < 9:
+						return 0.001 + float64(i-4)*0.09 // 0.001→0.451
+					default:
+						return 0.42 - float64(i-9)*0.008
+					}
+				}),
+			// Latency on svc also spikes post-eviction. Gives RW006 two confirming signals.
+			demoSignal("lat-"+svc, svc, model.MetricLatencyP99, "ms",
+				base, 45, func(i int) float64 {
+					switch {
+					case i < 4:
+						return 90.0 // flat baseline
+					case i < 10:
+						return 90 + float64(i-4)*200 // 90→1290ms
+					default:
+						return 1100 - float64(i-10)*20
+					}
 				}),
 		},
 		Sources: []model.SourceReport{
-			{Name: "prometheus", Status: model.SourceStatusOK, EventCount: 0, SignalCount: 1, Duration: "0.9s"},
+			{Name: "prometheus", Status: model.SourceStatusOK, EventCount: 0, SignalCount: 2, Duration: "0.9s"},
 			{Name: "kubernetes", Status: model.SourceStatusOK, EventCount: 2, SignalCount: 0, Duration: "0.6s"},
+			{Name: "alertmanager", Status: model.SourceStatusOK, EventCount: 1, SignalCount: 0, Duration: "0.3s"},
 		},
 	}
 }

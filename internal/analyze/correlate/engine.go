@@ -12,7 +12,7 @@ import (
 )
 
 // Run applies all correlation rules and assembles a ranked Verdict.
-// It is called by analyze.RunFull in Phase 4.
+// It is called by analyze.RunFull.
 func Run(inc model.Incident, graph *topology.Graph) *model.Verdict {
 	ctx := NewRuleContext(inc, graph)
 

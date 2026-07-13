@@ -15,17 +15,15 @@ coverage.html
 *.swp
 *.swo
 
-# Config with credentials (local overrides only; the public rewind.yaml.example is committed)
+# Local config with credentials (committed example: rewind.yaml.example)
 rewind.yaml
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Node (web UI build artifacts in Phase 6)
-ui/node_modules/
-ui/dist/
-ui/.svelte-kit/
+# Rewind incident bundles generated during local development/testing
+*.rewind
 
 # Temp
 *.tmp

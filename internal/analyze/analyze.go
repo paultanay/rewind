@@ -1,10 +1,6 @@
-// Package analyze is the top-level analysis pipeline. It wires together the
-// sub-packages (changepoint, topology, correlate, verdict) and exposes a
-// single Run function that the CLI calls.
-//
-// Phase 2: change-point detection on all signals.
-// Phase 3: topology graph construction from collected entities.
-// Phase 4: correlation rules RW001–RW010, verdict generation.
+// Package analyze is the top-level analysis pipeline. It wires together
+// change-point detection, entity topology construction, and the correlation
+// engine, exposing a single Run entry-point for the CLI.
 package analyze
 
 import (
@@ -17,7 +13,8 @@ import (
 )
 
 // RunResult extends the base Incident with the topology graph produced during
-// analysis. The graph is passed to the correlation engine in Phase 4.
+// analysis. Callers that need the graph for further inspection (e.g. tests)
+// can use RunFull; ordinary callers should use Run.
 type RunResult struct {
 	Incident model.Incident
 	// Graph is the entity topology built from Incident.Entities. Callers that
@@ -32,18 +29,18 @@ func Run(inc model.Incident) model.Incident {
 }
 
 // RunFull executes the full analysis pipeline and returns both the updated
-// Incident and the topology graph. Used by Phase 4 correlation engine.
+// Incident and the entity topology graph.
 func RunFull(inc model.Incident) RunResult {
-	// ── Phase 2: change-point detection ──────────────────────────────────────
+	// Detect statistical change-points in each signal using both the
+	// baseline-deviation (median+MAD) and PELT detectors.
 	inc.Signals = detectChangePoints(inc.Signals)
 
-	// ── Phase 3: topology graph ───────────────────────────────────────────────
-	// Build once; the correlation engine receives it via RunResult.
+	// Build the entity ownership graph once; the correlation engine
+	// uses it to score causal proximity between entities.
 	graph := topology.Build(inc.Entities)
 
-	// ── Phase 4: correlation engine + verdict ─────────────────────────────────
-	// correlate.Run applies all 10 rules, coalesces CrashLoop events (RW009),
-	// assembles causal chains, calibrates confidence, and returns a ranked Verdict.
+	// Apply all 10 correlation rules (RW001–RW010), assemble causal chains,
+	// calibrate confidence, and attach the ranked verdict.
 	inc.Verdict = correlate.Run(inc, graph)
 
 	return RunResult{Incident: inc, Graph: graph}

@@ -4,7 +4,7 @@
 //	Pod → ReplicaSet/Deployment → Service
 //	Node → (pods scheduled on it, via label/nodeName)
 //
-// Additionally, when Tempo call-graph data is present (Phase 5), service-to-
+// Additionally, when Tempo call-graph data is present , service-to-
 // service edges are added. The correlation rules use the graph to score
 // proximity: effects on graph-adjacent entities are more likely caused by the
 // same trigger than effects on unrelated entities.
@@ -51,7 +51,7 @@ func Build(entities []model.Entity) *Graph {
 }
 
 // AddCallEdge records a service-to-service call relationship (caller → callee).
-// This is populated from Tempo trace data in Phase 5.
+// This is populated from Tempo trace data.
 func (g *Graph) AddCallEdge(callerID, calleeID string) {
 	g.callEdges[callerID] = append(g.callEdges[callerID], calleeID)
 }

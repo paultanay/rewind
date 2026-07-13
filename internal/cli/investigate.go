@@ -180,9 +180,8 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 			},
 		}
 
-		// ── Analysis pipeline ────────────────────────────────────────────────
-		// Phase 2: change-point detection on all signals.
-		// Phase 4 will add correlation and verdict generation here.
+		// Run the full analysis pipeline: change-point detection, topology
+		// graph construction, correlation rules, and verdict generation.
 		inc = analyze.Run(inc)
 
 		// ── Bundle export ────────────────────────────────────────────────────
@@ -288,7 +287,7 @@ func buildRegistry(cfg *Config) *sources.Registry {
 		})
 	}
 
-	// ── Loki (Phase 5) ───────────────────────────────────────────────────────
+	// ── Loki ───────────────────────────────────────────────────────────────────────
 	if !cfg.Loki.Disabled && cfg.Loki.URL != "" {
 		reg.Register(loki.New(loki.Config{
 			URL:            cfg.Loki.URL,
@@ -300,7 +299,7 @@ func buildRegistry(cfg *Config) *sources.Registry {
 		}, rewindVersion))
 	}
 
-	// ── Tempo (Phase 5) ──────────────────────────────────────────────────────
+	// ── Tempo ──────────────────────────────────────────────────────────────────────
 	if !cfg.Tempo.Disabled && cfg.Tempo.URL != "" {
 		reg.Register(tempo.New(tempo.Config{
 			URL:            cfg.Tempo.URL,
@@ -311,7 +310,7 @@ func buildRegistry(cfg *Config) *sources.Registry {
 		}, rewindVersion))
 	}
 
-	// ── Alertmanager (Phase 5) ────────────────────────────────────────────────
+	// ── Alertmanager ─────────────────────────────────────────────────────────────
 	if !cfg.AlertMgr.Disabled && cfg.AlertMgr.URL != "" {
 		reg.Register(alertmanager.New(alertmanager.Config{
 			URL:      cfg.AlertMgr.URL,

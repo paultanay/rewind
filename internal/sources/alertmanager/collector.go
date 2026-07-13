@@ -3,7 +3,7 @@
 // Design constraints (spec §8):
 //   - Query only the /api/v2/alerts endpoint (read-only).
 //   - Each active alert → an AlertFired event; each resolved alert → AlertResolved.
-//   - Do NOT create hypotheses from alerts alone (enforced by RW010 in Phase 4).
+//   - Do NOT create hypotheses from alerts alone (enforced by RW010).
 //   - Deduplicate alerts by fingerprint (Alertmanager provides them).
 //   - SourceRef deep-links to the Alertmanager web UI.
 package alertmanager

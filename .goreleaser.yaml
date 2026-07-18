@@ -67,7 +67,7 @@ changelog:
 
 release:
   github:
-    owner: paultanay
+    owner: rewind-io
     name: rewind
   draft: false
   prerelease: auto
@@ -75,7 +75,7 @@ release:
 
 dockers:
   - image_templates:
-      - "ghcr.io/paultanay/rewind:{{ .Tag }}-amd64"
+      - "ghcr.io/rewind-io/rewind:{{ .Tag }}-amd64"
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"

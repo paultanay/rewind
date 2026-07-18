@@ -1,6 +1,7 @@
 # Binaries
 bin/
-dist/
+/dist/
+!internal/server/ui/dist/
 *.exe
 *.test
 

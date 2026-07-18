@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 const maxPoints = 500

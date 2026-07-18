@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/analyze/changepoint"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze/changepoint"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // ─── Series builders ──────────────────────────────────────────────────────────

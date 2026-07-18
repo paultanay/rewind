@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/sources/cicd"
+	"github.com/paultanay/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/sources/cicd"
 )
 
 var base = time.Date(2026, 7, 9, 14, 20, 0, 0, time.UTC)

@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/rewind-io/rewind/internal/model"
-	k8scol "github.com/rewind-io/rewind/internal/sources/kubernetes"
+	"github.com/paultanay/rewind/internal/model"
+	k8scol "github.com/paultanay/rewind/internal/sources/kubernetes"
 )
 
 var base = time.Date(2026, 7, 9, 14, 20, 0, 0, time.UTC)

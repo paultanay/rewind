@@ -17,9 +17,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/analyze"
-	"github.com/rewind-io/rewind/internal/bundle"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze"
+	"github.com/paultanay/rewind/internal/bundle"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 var base = time.Date(2026, 7, 9, 14, 20, 0, 0, time.UTC)

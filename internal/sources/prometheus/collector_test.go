@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
-	prom "github.com/rewind-io/rewind/internal/sources/prometheus"
+	"github.com/paultanay/rewind/internal/model"
+	prom "github.com/paultanay/rewind/internal/sources/prometheus"
 )
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────

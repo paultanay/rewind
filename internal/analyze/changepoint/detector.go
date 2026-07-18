@@ -19,7 +19,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // Detector is the common interface for all change-point algorithms.

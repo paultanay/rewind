@@ -13,7 +13,7 @@ package sources
 import (
 	"context"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // CollectResult is the output of a single collector run.

@@ -13,7 +13,7 @@
 
 ```bash
 # 1. Install
-go install github.com/rewind-io/rewind/cmd/rewind@latest
+go install github.com/paultanay/rewind/cmd/rewind@latest
 
 # 2. Run the offline demo (no cluster required)
 rewind demo

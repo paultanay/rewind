@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/bundle"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/bundle"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // makeTestIncident returns a minimal but realistic Incident for testing.

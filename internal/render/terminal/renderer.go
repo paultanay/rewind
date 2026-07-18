@@ -16,7 +16,7 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // ─── Colour palette ───────────────────────────────────────────────────────────

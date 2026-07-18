@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 func TestNewIncidentID(t *testing.T) {

@@ -1,6 +1,6 @@
-module github.com/rewind-io/rewind
+module github.com/paultanay/rewind
 
-go 1.25.6
+go 1.25.0
 
 require (
 	github.com/fatih/color v1.19.0

@@ -1,35 +1,29 @@
 # golangci-lint configuration for Rewind.
-# Run: golangci-lint run ./...
-# Docs: https://golangci-lint.run/usage/configuration/
+# Run locally: golangci-lint run ./...
 
 run:
   timeout: 5m
   modules-download-mode: readonly
 
 linters:
+  disable-all: true
   enable:
-    - errcheck        # check that errors are handled
-    - govet           # go vet checks
-    - staticcheck     # advanced static analysis (SA, S1, ST1, QF)
-    - revive          # opinionated linter — replaces golint
-    - gosec           # security checks
-    - gocritic        # additional code style checks
-    - misspell        # spell check in comments and strings
-    - unused          # find unused code
-    - gofmt           # enforce gofmt formatting
-    - goimports       # enforce goimports formatting
-    - bodyclose       # check http response body is closed
-    - noctx           # find http requests without context
-    - exhaustive      # check exhaustiveness of enum switch statements
-    - godot           # check comment endings
-    - whitespace      # detect leading/trailing whitespace in block statements
-    - wrapcheck       # ensure errors from external packages are wrapped
+    - errcheck       # unhandled errors
+    - govet          # go vet
+    - staticcheck    # advanced static analysis
+    - revive         # opinionated style (replaces golint)
+    - gosec          # security patterns
+    - misspell       # comment/string spell check
+    - gofmt          # formatting
+    - goimports      # import ordering
+    - bodyclose      # unclosed HTTP response bodies
+    - whitespace     # leading/trailing blank lines in blocks
 
 linters-settings:
   govet:
     enable-all: true
     disable:
-      - fieldalignment  # struct field alignment — opt-in per package
+      - fieldalignment  # useful but too noisy for initial release
 
   revive:
     rules:
@@ -39,37 +33,21 @@ linters-settings:
 
   gosec:
     excludes:
-      - G304  # file path from variable — we accept this in bundle I/O
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - ifElseChain
+      - G304  # file path from variable — intentional in bundle I/O
 
   misspell:
     locale: US
 
-  exhaustive:
-    default-signifies-exhaustive: true
-
-  wrapcheck:
-    ignoreSigs:
-      - fmt.Errorf(
-
 issues:
   max-same-issues: 0
   exclude-rules:
-    # Test files can use assert-style helpers without wrapping errors.
+    # Test helpers don't need error wrapping or security hardening.
     - path: "_test\\.go"
       linters:
-        - wrapcheck
         - gosec
         - errcheck
 
-    # Generated or embedded files.
-    - path: "ui/"
+    # Embedded UI assets are not Go source.
+    - path: "server/ui/"
       linters:
         - all

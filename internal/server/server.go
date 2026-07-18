@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 //go:embed ui/dist

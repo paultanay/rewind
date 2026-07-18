@@ -6,10 +6,10 @@ package analyze
 import (
 	"math"
 
-	"github.com/rewind-io/rewind/internal/analyze/changepoint"
-	"github.com/rewind-io/rewind/internal/analyze/correlate"
-	"github.com/rewind-io/rewind/internal/analyze/topology"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze/changepoint"
+	"github.com/paultanay/rewind/internal/analyze/correlate"
+	"github.com/paultanay/rewind/internal/analyze/topology"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // RunResult extends the base Incident with the topology graph produced during

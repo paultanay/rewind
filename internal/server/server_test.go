@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/server"
+	"github.com/paultanay/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/server"
 )
 
 // newTestIncident builds a minimal incident for server tests.

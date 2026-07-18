@@ -15,7 +15,7 @@ package topology
 import (
 	"strings"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // Graph is an immutable directed entity graph. Build it once per analysis run.

@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rewind-io/rewind/internal/bundle"
-	"github.com/rewind-io/rewind/internal/render/terminal"
+	"github.com/paultanay/rewind/internal/bundle"
+	"github.com/paultanay/rewind/internal/render/terminal"
 )
 
 func newExportCmd() *cobra.Command {

@@ -9,18 +9,18 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rewind-io/rewind/internal/analyze"
-	"github.com/rewind-io/rewind/internal/bundle"
-	"github.com/rewind-io/rewind/internal/model"
-	mdrender "github.com/rewind-io/rewind/internal/render/markdown"
-	"github.com/rewind-io/rewind/internal/render/terminal"
-	"github.com/rewind-io/rewind/internal/sources"
-	"github.com/rewind-io/rewind/internal/sources/alertmanager"
-	"github.com/rewind-io/rewind/internal/sources/cicd"
-	k8s "github.com/rewind-io/rewind/internal/sources/kubernetes"
-	"github.com/rewind-io/rewind/internal/sources/loki"
-	prom "github.com/rewind-io/rewind/internal/sources/prometheus"
-	"github.com/rewind-io/rewind/internal/sources/tempo"
+	"github.com/paultanay/rewind/internal/analyze"
+	"github.com/paultanay/rewind/internal/bundle"
+	"github.com/paultanay/rewind/internal/model"
+	mdrender "github.com/paultanay/rewind/internal/render/markdown"
+	"github.com/paultanay/rewind/internal/render/terminal"
+	"github.com/paultanay/rewind/internal/sources"
+	"github.com/paultanay/rewind/internal/sources/alertmanager"
+	"github.com/paultanay/rewind/internal/sources/cicd"
+	k8s "github.com/paultanay/rewind/internal/sources/kubernetes"
+	"github.com/paultanay/rewind/internal/sources/loki"
+	prom "github.com/paultanay/rewind/internal/sources/prometheus"
+	"github.com/paultanay/rewind/internal/sources/tempo"
 )
 
 type investigateFlags struct {

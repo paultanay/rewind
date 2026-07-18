@@ -17,12 +17,12 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/rewind-io/rewind/internal/analyze"
-	"github.com/rewind-io/rewind/internal/bundle"
-	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/render/terminal"
-	"github.com/rewind-io/rewind/internal/sources"
-	prom "github.com/rewind-io/rewind/internal/sources/prometheus"
+	"github.com/paultanay/rewind/internal/analyze"
+	"github.com/paultanay/rewind/internal/bundle"
+	"github.com/paultanay/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/render/terminal"
+	"github.com/paultanay/rewind/internal/sources"
+	prom "github.com/paultanay/rewind/internal/sources/prometheus"
 )
 
 func init() {

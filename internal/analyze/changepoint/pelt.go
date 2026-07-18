@@ -3,7 +3,7 @@ package changepoint
 import (
 	"math"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // PELT implements the Pruned Exact Linear Time change-point detection

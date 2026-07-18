@@ -28,7 +28,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          version: v1.61
           args: --timeout 5m
 
   # ── Test ──────────────────────────────────────────────────────────────────
@@ -46,8 +46,13 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache: true
+      # Race detector requires CGO (gcc). Linux/macOS runners ship gcc; Windows runners do not.
       - name: Run tests with race detector
+        if: runner.os != 'Windows'
         run: go test -race -count=1 -timeout=120s ./...
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: go test -count=1 -timeout=120s ./...
       - name: Check coverage gates (model, analyze, bundle)
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
         run: |

@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/sources"
+	"github.com/paultanay/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/sources"
 )
 
 const (

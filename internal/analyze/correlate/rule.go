@@ -21,8 +21,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/analyze/topology"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze/topology"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // ─── Rule interface ───────────────────────────────────────────────────────────

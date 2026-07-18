@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // RunResult aggregates the merged output from all collectors.

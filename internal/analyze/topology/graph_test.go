@@ -3,8 +3,8 @@ package topology_test
 import (
 	"testing"
 
-	"github.com/rewind-io/rewind/internal/analyze/topology"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze/topology"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // ─── fixtures ─────────────────────────────────────────────────────────────────

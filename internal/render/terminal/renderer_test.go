@@ -8,8 +8,8 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/render/terminal"
+	"github.com/paultanay/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/render/terminal"
 )
 
 func init() {

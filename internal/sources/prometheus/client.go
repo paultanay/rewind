@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // apiResponse is the top-level Prometheus HTTP API response envelope.

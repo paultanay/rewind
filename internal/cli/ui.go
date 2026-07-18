@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rewind-io/rewind/internal/bundle"
-	"github.com/rewind-io/rewind/internal/model"
-	"github.com/rewind-io/rewind/internal/server"
+	"github.com/paultanay/rewind/internal/bundle"
+	"github.com/paultanay/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/server"
 )
 
 func newUICmd() *cobra.Command {

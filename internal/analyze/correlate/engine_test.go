@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/analyze/correlate"
-	"github.com/rewind-io/rewind/internal/analyze/topology"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze/correlate"
+	"github.com/paultanay/rewind/internal/analyze/topology"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────

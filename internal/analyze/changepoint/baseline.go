@@ -3,7 +3,7 @@ package changepoint
 import (
 	"math"
 
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // BaselineDeviation implements the median+MAD detector described in spec §9.

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rewind-io/rewind/internal/analyze/topology"
-	"github.com/rewind-io/rewind/internal/model"
+	"github.com/paultanay/rewind/internal/analyze/topology"
+	"github.com/paultanay/rewind/internal/model"
 )
 
 // Run applies all correlation rules and assembles a ranked Verdict.

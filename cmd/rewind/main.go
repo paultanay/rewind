@@ -2,11 +2,11 @@
 // replay engine. It is intentionally thin — all logic lives in internal/.
 // Build-time version injection via goreleaser ldflags:
 //
-//	-X github.com/rewind-io/rewind/internal/cli.rewindVersion={{.Version}}
+//	-X github.com/paultanay/rewind/internal/cli.rewindVersion={{.Version}}
 package main
 
 import (
-	"github.com/rewind-io/rewind/internal/cli"
+	"github.com/paultanay/rewind/internal/cli"
 )
 
 func main() {

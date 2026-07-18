@@ -10,7 +10,7 @@
 //   - Custom queries can be added via config (not yet wired, reserved field).
 package prometheus
 
-import "github.com/rewind-io/rewind/internal/model"
+import "github.com/paultanay/rewind/internal/model"
 
 // QueryTemplate defines one Prometheus query to execute per entity.
 // The Metric field is the canonical model metric name the result maps to.

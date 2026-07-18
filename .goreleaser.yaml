@@ -16,7 +16,7 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X github.com/rewind-io/rewind/internal/cli.rewindVersion={{.Version}}
+      - -X github.com/paultanay/rewind/internal/cli.rewindVersion={{.Version}}
     goos:
       - linux
       - darwin

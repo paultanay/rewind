@@ -3,13 +3,13 @@
 //
 // Architecture:
 //
-//   Rule (interface)
-//     ↓  Each rule scans events + signals + graph
-//   []Edge  (trigger event → effect, with score)
-//     ↓  Engine assembles edges into causal chains
-//   []Hypothesis (ranked)
-//     ↓
-//   Verdict
+//	Rule (interface)
+//	  ↓  Each rule scans events + signals + graph
+//	[]Edge  (trigger event → effect, with score)
+//	  ↓  Engine assembles edges into causal chains
+//	[]Hypothesis (ranked)
+//	  ↓
+//	Verdict
 //
 // Every rule has a stable ID (RW001..RW010), is independently testable, and
 // emits the exact timestamps + magnitudes it used so the explanation template
@@ -38,8 +38,8 @@ type Rule interface {
 
 // RuleContext bundles all inputs available to a rule.
 type RuleContext struct {
-	Inc    model.Incident
-	Graph  *topology.Graph
+	Inc   model.Incident
+	Graph *topology.Graph
 	// signalByEntity provides fast lookup of signals keyed by (entityID, metric).
 	signalByEntity map[signalKey]*model.Signal
 	// eventIndex provides fast lookup by ID.
@@ -140,7 +140,7 @@ type Edge struct {
 // TemporalScore returns a score in (0,1] based on how quickly the effect
 // followed the trigger. Spec §10: effects within 0–5m score ~1.0; at 2h ≈ 0.
 //
-//   score = exp(-λ·gap_minutes)  where λ = ln(20)/5 ≈ 0.6
+//	score = exp(-λ·gap_minutes)  where λ = ln(20)/5 ≈ 0.6
 //
 // This gives: 0m→1.00, 1m→0.55, 5m→0.05, 10m→0.002.
 // We floor at 0.01 so very late correlations remain non-zero and discoverable.
@@ -160,11 +160,11 @@ func TemporalScore(trigger, effect time.Time) float64 {
 // ProximityScore returns a boost factor based on topological distance between
 // the trigger entity and the effect entity in the graph.
 //
-//   same entity → 1.0
-//   distance 1  → 0.7
-//   distance 2  → 0.5
-//   distance 3  → 0.35
-//   distance ≥4 → 0.2
+//	same entity → 1.0
+//	distance 1  → 0.7
+//	distance 2  → 0.5
+//	distance 3  → 0.35
+//	distance ≥4 → 0.2
 func ProximityScore(graph *topology.Graph, triggerEntityID, effectEntityID string) float64 {
 	if triggerEntityID == effectEntityID {
 		return 1.0

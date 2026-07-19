@@ -118,13 +118,13 @@ func TestGitLab_DeploymentInWindow(t *testing.T) {
 	deployAt := base.Add(-15 * time.Minute)
 	payload, _ := json.Marshal([]map[string]any{
 		{
-			"id":         99,
-			"created_at": deployAt.Format(time.RFC3339),
-			"status":     "success",
-			"ref":        "v2.3.1",
-			"sha":        "deadbeef1234",
+			"id":          99,
+			"created_at":  deployAt.Format(time.RFC3339),
+			"status":      "success",
+			"ref":         "v2.3.1",
+			"sha":         "deadbeef1234",
 			"environment": map[string]string{"name": "production"},
-			"user":       map[string]string{"username": "alice"},
+			"user":        map[string]string{"username": "alice"},
 		},
 	})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

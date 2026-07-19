@@ -1,9 +1,9 @@
 # Rewind — Makefile
 # Targets are designed to be composable and CI-friendly.
-# Requires: Go 1.23+, golangci-lint, goreleaser (for release).
+# Requires: Go 1.22+, golangci-lint, goreleaser (for release).
 
 BINARY      := rewind
-MODULE      := github.com/rewind-io/rewind
+MODULE      := github.com/paultanay/rewind
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS     := -s -w -X $(MODULE)/internal/cli.rewindVersion=$(VERSION)
 BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"

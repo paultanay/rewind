@@ -126,16 +126,16 @@ func TestRenderContainsKeyElements(t *testing.T) {
 
 	checks := []string{
 		inc.ID,
-		"shop",               // namespace
-		"DEPLOY",             // event kind label
-		"OOMKILL",            // critical event
-		"ANOMALY",            // change-point row
-		"latency.p99",        // metric name in CP row
-		"VERDICT",            // verdict section
-		"HIGH",               // confidence
-		"RW001",              // rule ID
-		"checkout v2.3.1",    // trigger title
-		"0.1.0-dev",          // version in footer
+		"shop",            // namespace
+		"DEPLOY",          // event kind label
+		"OOMKILL",         // critical event
+		"ANOMALY",         // change-point row
+		"latency.p99",     // metric name in CP row
+		"VERDICT",         // verdict section
+		"HIGH",            // confidence
+		"RW001",           // rule ID
+		"checkout v2.3.1", // trigger title
+		"0.1.0-dev",       // version in footer
 	}
 	for _, want := range checks {
 		if !strings.Contains(out, want) {

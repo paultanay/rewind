@@ -21,12 +21,12 @@ type Config struct {
 	// SourceTimeout is the per-source collection timeout.
 	SourceTimeout time.Duration `mapstructure:"source_timeout"`
 
-	Prometheus PrometheusConfig `mapstructure:"prometheus"`
-	Loki       LokiConfig       `mapstructure:"loki"`
-	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
-	Tempo      TempoConfig      `mapstructure:"tempo"`
-	GitHub     GitHubConfig     `mapstructure:"github"`
-	GitLab     GitLabConfig     `mapstructure:"gitlab"`
+	Prometheus PrometheusConfig   `mapstructure:"prometheus"`
+	Loki       LokiConfig         `mapstructure:"loki"`
+	Kubernetes KubernetesConfig   `mapstructure:"kubernetes"`
+	Tempo      TempoConfig        `mapstructure:"tempo"`
+	GitHub     GitHubConfig       `mapstructure:"github"`
+	GitLab     GitLabConfig       `mapstructure:"gitlab"`
 	AlertMgr   AlertManagerConfig `mapstructure:"alertmanager"`
 }
 
@@ -62,14 +62,14 @@ type TempoConfig struct {
 }
 
 type GitHubConfig struct {
-	Token   string   `mapstructure:"token"`
-	Repos   []string `mapstructure:"repos"`
-	Disabled bool    `mapstructure:"disabled"`
+	Token    string   `mapstructure:"token"`
+	Repos    []string `mapstructure:"repos"`
+	Disabled bool     `mapstructure:"disabled"`
 }
 
 type GitLabConfig struct {
-	URL     string   `mapstructure:"url"`
-	Token   string   `mapstructure:"token"`
+	URL      string   `mapstructure:"url"`
+	Token    string   `mapstructure:"token"`
 	Projects []string `mapstructure:"projects"`
 	Disabled bool     `mapstructure:"disabled"`
 }

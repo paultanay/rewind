@@ -13,7 +13,6 @@ import (
 
 var t0 = time.Date(2026, 7, 9, 14, 0, 0, 0, time.UTC)
 
-
 func makeEvent(id string, kind model.EventKind, entityID string, at time.Time, sev model.Severity) model.Event {
 	return model.Event{
 		ID:       id,
@@ -315,9 +314,9 @@ func TestTemporalScore(t *testing.T) {
 		wantGT float64
 		wantLT float64
 	}{
-		{0, 0.99, 1.01},     // immediate: ~1.0
-		{5, 0.01, 0.20},     // 5 minutes: small but non-zero
-		{120, 0.001, 0.05},  // 2 hours: near-zero
+		{0, 0.99, 1.01},    // immediate: ~1.0
+		{5, 0.01, 0.20},    // 5 minutes: small but non-zero
+		{120, 0.001, 0.05}, // 2 hours: near-zero
 	}
 	base := time.Now()
 	for _, tc := range cases {

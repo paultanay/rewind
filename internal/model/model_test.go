@@ -20,8 +20,8 @@ func TestNewIncidentID(t *testing.T) {
 func TestNewEntityID(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		kind      model.EntityKind
-		ns, name  string
+		kind       model.EntityKind
+		ns, name   string
 		wantPrefix string
 	}{
 		{model.EntityKindService, "shop", "checkout", "svc/"},

@@ -295,4 +295,3 @@ func (g *Graph) directedNeighbors(id string) []string {
 	}
 	return out
 }
-

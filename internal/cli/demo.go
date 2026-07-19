@@ -142,34 +142,42 @@ func badDeployScenario(base time.Time, window model.TimeRange, meta model.Meta) 
 		Events: []model.Event{
 			{ID: "ev-1", At: base.Add(5 * time.Minute), Kind: model.EventKindDeploy,
 				EntityID: svc, Severity: model.SeverityInfo,
-				Title:  "Deployed checkout v2.3.1",
-				Detail: "Image: checkout:v2.3.1 (sha256:f3a...)\nTriggered by: CI pipeline #8821\nRollout: 3/3 pods updated",
+				Title:     "Deployed checkout v2.3.1",
+				Detail:    "Image: checkout:v2.3.1 (sha256:f3a...)\nTriggered by: CI pipeline #8821\nRollout: 3/3 pods updated",
 				SourceRef: model.SourceRef{SourceName: "kubernetes"}},
 			{ID: "ev-2", At: base.Add(13 * time.Minute), Kind: model.EventKindAlertFired,
 				EntityID: svc, Severity: model.SeverityNotable,
-				Title:    "HighLatency: checkout p99 > 2s",
+				Title:     "HighLatency: checkout p99 > 2s",
 				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 			{ID: "ev-3", At: base.Add(14 * time.Minute), Kind: model.EventKindAlertFired,
 				EntityID: svc, Severity: model.SeverityCritical,
-				Title:    "HighErrorRate: checkout error rate > 5%",
+				Title:     "HighErrorRate: checkout error rate > 5%",
 				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 			{ID: "ev-4", At: base.Add(16 * time.Minute), Kind: "LOG-BURST",
 				EntityID: svc, Severity: model.SeverityNotable,
-				Title:  "Log error burst on checkout (18.3 errors/s peak)",
-				Detail: "ERR connection pool exhausted after 30s\nERROR database timeout waiting for connection\nFATAL unable to acquire DB connection after 3 retries\nERR HTTP 503 from upstream\nERROR request failed: context deadline exceeded",
+				Title:     "Log error burst on checkout (18.3 errors/s peak)",
+				Detail:    "ERR connection pool exhausted after 30s\nERROR database timeout waiting for connection\nFATAL unable to acquire DB connection after 3 retries\nERR HTTP 503 from upstream\nERROR request failed: context deadline exceeded",
 				SourceRef: model.SourceRef{SourceName: "loki"}},
 		},
 		Signals: []model.Signal{
 			demoSignal("prom-lat-"+svc, svc, model.MetricLatencyP99, "ms",
 				base, 45, func(i int) float64 {
-					if i < 10 { return 180 + float64(i)*3 }
-					if i < 15 { return 220 + float64(i-10)*280 } // spike after deploy at 5m
+					if i < 10 {
+						return 180 + float64(i)*3
+					}
+					if i < 15 {
+						return 220 + float64(i-10)*280
+					} // spike after deploy at 5m
 					return 1650 - float64(i-15)*15
 				}),
 			demoSignal("prom-err-"+svc, svc, model.MetricErrorRate, "ratio",
 				base, 45, func(i int) float64 {
-					if i < 11 { return 0.002 }
-					if i < 16 { return 0.002 + float64(i-11)*0.025 }
+					if i < 11 {
+						return 0.002
+					}
+					if i < 16 {
+						return 0.002 + float64(i-11)*0.025
+					}
 					return 0.12 - float64(i-16)*0.003
 				}),
 		},
@@ -197,8 +205,8 @@ func oomCascadeScenario(base time.Time, window model.TimeRange, meta model.Meta)
 		Events: []model.Event{
 			{ID: "ev-oom-1", At: base.Add(8 * time.Minute), Kind: model.EventKindOOMKill,
 				EntityID: pod, Severity: model.SeverityCritical,
-				Title:  "OOMKilled: checkout-7d9f-xk2p9",
-				Detail: "Container: checkout\nLimit: 512Mi\nUsage at kill: 511Mi (99.8%)\nReason: memory.limit_in_bytes exceeded",
+				Title:     "OOMKilled: checkout-7d9f-xk2p9",
+				Detail:    "Container: checkout\nLimit: 512Mi\nUsage at kill: 511Mi (99.8%)\nReason: memory.limit_in_bytes exceeded",
 				SourceRef: model.SourceRef{SourceName: "kubernetes"}},
 			{ID: "ev-oom-2", At: base.Add(9 * time.Minute), Kind: model.EventKindRestart,
 				EntityID: pod, Severity: model.SeverityNotable,
@@ -211,7 +219,7 @@ func oomCascadeScenario(base time.Time, window model.TimeRange, meta model.Meta)
 				Title: "Pod restarted (restart #3)", SourceRef: model.SourceRef{SourceName: "kubernetes"}},
 			{ID: "ev-oom-5", At: base.Add(14 * time.Minute), Kind: model.EventKindAlertFired,
 				EntityID: svc, Severity: model.SeverityCritical,
-				Title:    "HighErrorRate: checkout error rate > 5%",
+				Title:     "HighErrorRate: checkout error rate > 5%",
 				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 		},
 		Signals: []model.Signal{
@@ -245,7 +253,9 @@ func oomCascadeScenario(base time.Time, window model.TimeRange, meta model.Meta)
 			// Restarts counter on svc for RW009 crash-loop detection.
 			demoSignal("rst-"+svc, svc, model.MetricRestarts, "count",
 				base, 45, func(i int) float64 {
-					if i < 9 { return 0 }
+					if i < 9 {
+						return 0
+					}
 					return float64(i - 8)
 				}),
 		},
@@ -277,8 +287,8 @@ func nodePressureScenario(base time.Time, window model.TimeRange, meta model.Met
 		Events: []model.Event{
 			{ID: "ev-np-1", At: base.Add(3 * time.Minute), Kind: model.EventKindNodePressure,
 				EntityID: node, Severity: model.SeverityCritical,
-				Title:  "NodeMemoryPressure: worker-2",
-				Detail: "Available memory: 142Mi / 8Gi (1.7%)\nCondition: MemoryPressure=True\nEviction threshold: 100Mi",
+				Title:     "NodeMemoryPressure: worker-2",
+				Detail:    "Available memory: 142Mi / 8Gi (1.7%)\nCondition: MemoryPressure=True\nEviction threshold: 100Mi",
 				SourceRef: model.SourceRef{SourceName: "kubernetes"}},
 			{ID: "ev-np-2", At: base.Add(4 * time.Minute), Kind: model.EventKindPodKilled,
 				EntityID: pod, Severity: model.SeverityNotable,
@@ -287,7 +297,7 @@ func nodePressureScenario(base time.Time, window model.TimeRange, meta model.Met
 				SourceRef: model.SourceRef{SourceName: "kubernetes"}},
 			{ID: "ev-np-3", At: base.Add(15 * time.Minute), Kind: model.EventKindAlertFired,
 				EntityID: svc, Severity: model.SeverityCritical,
-				Title:    "HighErrorRate: checkout > 10% for 5m",
+				Title:     "HighErrorRate: checkout > 10% for 5m",
 				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 		},
 		Signals: []model.Signal{
@@ -339,14 +349,22 @@ func cpuThrottleScenario(base time.Time, window model.TimeRange, meta model.Meta
 		Signals: []model.Signal{
 			demoSignal("cpu-"+svc, svc, model.MetricCPUThrottle, "ratio",
 				base, 45, func(i int) float64 {
-					if i < 10 { return 0.02 }
-					if i < 14 { return 0.02 + float64(i-10)*0.18 }
+					if i < 10 {
+						return 0.02
+					}
+					if i < 14 {
+						return 0.02 + float64(i-10)*0.18
+					}
 					return 0.72
 				}),
 			demoSignal("lat-"+svc, svc, model.MetricLatencyP99, "ms",
 				base, 45, func(i int) float64 {
-					if i < 12 { return 95 + float64(i)*2 }
-					if i < 18 { return 110 + float64(i-12)*85 }
+					if i < 12 {
+						return 95 + float64(i)*2
+					}
+					if i < 18 {
+						return 110 + float64(i-12)*85
+					}
 					return 600
 				}),
 		},
@@ -369,15 +387,17 @@ func falsePositiveScenario(base time.Time, window model.TimeRange, meta model.Me
 		Events: []model.Event{
 			{ID: "ev-fp-1", At: base.Add(10 * time.Minute), Kind: model.EventKindAlertFired,
 				EntityID: svc, Severity: model.SeverityNotable,
-				Title:    "HighLatency: frontend p99 > 1s (brief spike)",
-				Detail:   "Duration: 42 seconds. Auto-resolved.",
+				Title:     "HighLatency: frontend p99 > 1s (brief spike)",
+				Detail:    "Duration: 42 seconds. Auto-resolved.",
 				SourceRef: model.SourceRef{SourceName: "alertmanager"}},
 		},
 		Signals: []model.Signal{
 			demoSignal("lat-"+svc, svc, model.MetricLatencyP99, "ms",
 				base, 45, func(i int) float64 {
 					// Brief spike, no change-point.
-					if i == 10 || i == 11 { return 1100 }
+					if i == 10 || i == 11 {
+						return 1100
+					}
 					return 200 + float64(i%3)*10
 				}),
 		},

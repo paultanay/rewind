@@ -124,7 +124,8 @@ func (r RW002) Apply(ctx RuleContext) []Edge {
 // ─── RW003: OOMKill chain ─────────────────────────────────────────────────────
 
 // RW003 detects the classic memory saturation chain:
-//   memory.usage ↑ → OOMKill event → Restart event → error.rate ↑ on dependents
+//
+//	memory.usage ↑ → OOMKill event → Restart event → error.rate ↑ on dependents
 //
 // Each step is required in causal order. Missing steps reduce the score but do
 // not disqualify the chain — partial evidence still surfaces the memory pattern.
@@ -134,7 +135,7 @@ func (r RW003) ID() string { return "RW003" }
 
 func (r RW003) Apply(ctx RuleContext) []Edge {
 	var edges []Edge
-	const oomWindow = 5 * minD  // memory spike should precede OOMKill by ≤5m
+	const oomWindow = 5 * minD      // memory spike should precede OOMKill by ≤5m
 	const cascadeWindow = 10 * minD // downstream error.rate within 10m
 
 	for _, oomEv := range ctx.EventsByKind(evOOMKill) {
@@ -185,8 +186,8 @@ func (r RW003) Apply(ctx RuleContext) []Edge {
 			edges = append(edges, Edge{
 				RuleID:         r.ID(),
 				TriggerEventID: oomEv.ID,
-				EffectDesc: fmt.Sprintf("error.rate ↑ on %s after OOMKill cascade", errSig.EntityID),
-				Score:      cascadeScore,
+				EffectDesc:     fmt.Sprintf("error.rate ↑ on %s after OOMKill cascade", errSig.EntityID),
+				Score:          cascadeScore,
 				Link: model.ChainLink{
 					SignalID:    errSig.ID,
 					Description: fmt.Sprintf("error.rate ↑ %.1f× on downstream entity %s", cp.Magnitude, errSig.EntityID),
@@ -590,14 +591,14 @@ func (r RW010) Apply(ctx RuleContext) []Edge {
 // ─── EventKind shorthands (package-private) ───────────────────────────────────
 // These constants avoid importing model in every rule function body.
 const (
-	evDeploy      = model.EventKindDeploy
+	evDeploy       = model.EventKindDeploy
 	evConfigChange = model.EventKindConfigChange
-	evOOMKill     = model.EventKindOOMKill
-	evRestart     = model.EventKindRestart
-	evScaleChange = model.EventKindScaleChange
+	evOOMKill      = model.EventKindOOMKill
+	evRestart      = model.EventKindRestart
+	evScaleChange  = model.EventKindScaleChange
 	evNodePressure = model.EventKindNodePressure
-	evAlertFired  = model.EventKindAlertFired
-	minD          = time.Minute
+	evAlertFired   = model.EventKindAlertFired
+	minD           = time.Minute
 )
 
 // Ensure all rules implement the Rule interface.

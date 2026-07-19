@@ -46,7 +46,6 @@ func RunFull(inc model.Incident) RunResult {
 	return RunResult{Incident: inc, Graph: graph}
 }
 
-
 // detectChangePoints runs both detectors on each signal and attaches the
 // merged, capped change-point list.
 //

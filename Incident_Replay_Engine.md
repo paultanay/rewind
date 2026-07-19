@@ -87,7 +87,7 @@ v1 causality is deterministic and explainable).
 
 - Binary and module name: `rewind`. Module path: the repository's own hosting
   path (e.g. `gitlab.com/<owner>/rewind`).
-- License: Apache-2.0. Include `LICENSE`.
+- License: MIT. Include `LICENSE`.
 - Language: Go, latest stable (1.23+), CGO disabled. Web UI: see §11.
 
 ---

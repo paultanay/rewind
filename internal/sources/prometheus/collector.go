@@ -143,11 +143,11 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 
 	// Serialise raw fixture for bundle replay.
 	raw, _ := json.Marshal(map[string]any{
-		"url":      c.URL,
-		"step":     step.String(),
-		"window":   window,
-		"signals":  len(signals),
-		"errors":   errs,
+		"url":     c.URL,
+		"step":    step.String(),
+		"window":  window,
+		"signals": len(signals),
+		"errors":  errs,
 	})
 
 	var collectErr error
@@ -227,11 +227,4 @@ func entityIDForService(ns, svc string) string {
 		return model.NewEntityID(model.EntityKindService, ns, ns)
 	}
 	return model.NewEntityID(model.EntityKindService, ns, svc)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

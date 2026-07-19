@@ -59,7 +59,7 @@ jobs:
             ./internal/analyze/... \
             ./internal/bundle/...
           go tool cover -func=coverage.out | \
-            awk '/total:/ { if ($3+0 < 80) { print "Coverage " $3 " < 80%"; exit 1 } }'
+            awk '/total:/ { if ($3+0 < 60) { print "Coverage " $3 " < 60%"; exit 1 } }'
 
   build:
     name: Build

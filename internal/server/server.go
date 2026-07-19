@@ -122,7 +122,7 @@ func (s *Server) routes() http.Handler {
 		}
 		defer idx.Close()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		io.Copy(w, idx) //nolint:errcheck
+		_, _ = io.Copy(w, idx)
 	})
 
 	return mux

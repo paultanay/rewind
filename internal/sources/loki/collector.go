@@ -142,7 +142,6 @@ func (c *Collector) Collect(
 	return result, nil
 }
 
-
 // collectForTarget queries error log rates for one (namespace, service) pair.
 func (c *Collector) collectForTarget(
 	ctx context.Context,
@@ -248,13 +247,13 @@ func (c *Collector) detectBursts(
 		sampleDetail := c.fetchSamples(ctx, streamSel, burstAt, sampleLines)
 		deepLink := c.grafanaExploreURL(ns, svc, burstAt)
 		events = append(events, model.Event{
-			ID:       fmt.Sprintf("loki-burst-%s-%d", entityID, burstAt.Unix()),
-			At:       burstAt,
-			Kind:     model.EventKindLogBurst,
-			EntityID: entityID,
-			Severity: model.SeverityNotable,
-			Title:    fmt.Sprintf("Log error burst on %s (%.2f errors/s peak)", shortName(ns, svc), peakVal),
-			Detail:   sampleDetail,
+			ID:        fmt.Sprintf("loki-burst-%s-%d", entityID, burstAt.Unix()),
+			At:        burstAt,
+			Kind:      model.EventKindLogBurst,
+			EntityID:  entityID,
+			Severity:  model.SeverityNotable,
+			Title:     fmt.Sprintf("Log error burst on %s (%.2f errors/s peak)", shortName(ns, svc), peakVal),
+			Detail:    sampleDetail,
 			SourceRef: model.SourceRef{SourceName: "loki", URL: deepLink},
 		})
 	}
@@ -482,7 +481,6 @@ func maxFloat64(a, b float64) float64 {
 	}
 	return b
 }
-
 
 // Ensure Collector satisfies the sources.Collector interface.
 var _ sources.Collector = (*Collector)(nil)

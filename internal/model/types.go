@@ -38,7 +38,7 @@ const (
 	EventKindProbeFailed     EventKind = "ProbeFailed"
 	EventKindLogBurst        EventKind = "LogBurst"
 	EventKindTraceErrorSpike EventKind = "TraceErrorSpike"
-	EventKindCrashLoop       EventKind = "CrashLoop"  // RW009 coalesced event
+	EventKindCrashLoop       EventKind = "CrashLoop" // RW009 coalesced event
 	EventKindUnknown         EventKind = "Unknown"
 )
 
@@ -78,23 +78,23 @@ const (
 // intentional, reviewed operation.
 
 const (
-	MetricLatencyP50   = "latency.p50"
-	MetricLatencyP95   = "latency.p95"
-	MetricLatencyP99   = "latency.p99"
-	MetricErrorRate    = "error.rate"
-	MetricCPUUsage     = "cpu.usage"
-	MetricCPUThrottle  = "cpu.throttle"
-	MetricMemoryUsage  = "memory.usage"
-	MetricRestarts     = "restarts"
-	MetricQueueLag     = "queue.lag"
-	MetricReplicas     = "replicas"
-	MetricRequestRate  = "request.rate"
-	MetricDiskIO       = "disk.io"
-	MetricNetworkRecv  = "network.recv"
-	MetricNetworkSend  = "network.send"
-	MetricLogErrorRate   = "log.error.rate"
-	MetricTraceErrRate   = "trace.error.rate" // legacy alias
-	MetricTraceErrorRate = "trace.error.rate"
+	MetricLatencyP50      = "latency.p50"
+	MetricLatencyP95      = "latency.p95"
+	MetricLatencyP99      = "latency.p99"
+	MetricErrorRate       = "error.rate"
+	MetricCPUUsage        = "cpu.usage"
+	MetricCPUThrottle     = "cpu.throttle"
+	MetricMemoryUsage     = "memory.usage"
+	MetricRestarts        = "restarts"
+	MetricQueueLag        = "queue.lag"
+	MetricReplicas        = "replicas"
+	MetricRequestRate     = "request.rate"
+	MetricDiskIO          = "disk.io"
+	MetricNetworkRecv     = "network.recv"
+	MetricNetworkSend     = "network.send"
+	MetricLogErrorRate    = "log.error.rate"
+	MetricTraceErrRate    = "trace.error.rate" // legacy alias
+	MetricTraceErrorRate  = "trace.error.rate"
 	MetricTraceLatencyP99 = "trace.latency.p99"
 )
 
@@ -204,7 +204,7 @@ type Event struct {
 type ChainLink struct {
 	// Exactly one of EventID or SignalID+ChangePointIndex will be set.
 	EventID          string `json:"eventId,omitempty"`
-	SignalID          string `json:"signalId,omitempty"`
+	SignalID         string `json:"signalId,omitempty"`
 	ChangePointIndex int    `json:"changePointIndex,omitempty"`
 	// Description is a one-line human explanation of this link's role.
 	Description string `json:"description"`
@@ -216,7 +216,7 @@ type ChainLink struct {
 // by the correlation engine. Multiple hypotheses are emitted in rank order.
 type Hypothesis struct {
 	// TriggerEventID points to the Event the engine believes started the chain.
-	TriggerEventID string `json:"triggerEventId"`
+	TriggerEventID string     `json:"triggerEventId"`
 	Confidence     Confidence `json:"confidence"`
 	// Score is the internal numerical ranking (higher = more likely).
 	// Exposed in bundles/JSON for transparency; not shown in terminal UI.
@@ -281,13 +281,13 @@ type Meta struct {
 // The bundle format is: gzipped tar containing incident.json (this struct
 // JSON-serialised) plus sources/*.json raw fixtures for replay.
 type Incident struct {
-	ID      string   `json:"id"`
-	Window  TimeRange `json:"window"`
-	Scope   Scope    `json:"scope"`
-	Entities []Entity `json:"entities"`
-	Events  []Event  `json:"events"`
-	Signals []Signal `json:"signals"`
-	Verdict *Verdict `json:"verdict,omitempty"`
-	Sources []SourceReport `json:"sources"`
-	Meta    Meta     `json:"meta"`
+	ID       string         `json:"id"`
+	Window   TimeRange      `json:"window"`
+	Scope    Scope          `json:"scope"`
+	Entities []Entity       `json:"entities"`
+	Events   []Event        `json:"events"`
+	Signals  []Signal       `json:"signals"`
+	Verdict  *Verdict       `json:"verdict,omitempty"`
+	Sources  []SourceReport `json:"sources"`
+	Meta     Meta           `json:"meta"`
 }

@@ -18,12 +18,12 @@ var base = time.Date(2026, 7, 9, 14, 0, 0, 0, time.UTC)
 // one normal, one error, for service "checkout".
 func buildSearchResponse() string {
 	type trace struct {
-		TraceID         string  `json:"traceID"`
-		RootServiceName string  `json:"rootServiceName"`
-		RootTraceName   string  `json:"rootTraceName"`
-		DurationMs      float64 `json:"durationMs"`
-		StartTimeUnixNano string `json:"startTimeUnixNano"`
-		SpanSets        []struct {
+		TraceID           string  `json:"traceID"`
+		RootServiceName   string  `json:"rootServiceName"`
+		RootTraceName     string  `json:"rootTraceName"`
+		DurationMs        float64 `json:"durationMs"`
+		StartTimeUnixNano string  `json:"startTimeUnixNano"`
+		SpanSets          []struct {
 			Spans []struct {
 				Attributes []struct {
 					Key   string `json:"key"`

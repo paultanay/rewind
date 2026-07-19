@@ -248,9 +248,10 @@ func deduplicateLinks(links []model.ChainLink) []model.ChainLink {
 // ─── Confidence calibration (spec §10) ───────────────────────────────────────
 
 // calibrateConfidence assigns Confidence labels per spec §10:
-//   High   = trigger + ≥3 corroborating signals AND no competitor within 20%
-//   Medium = 2+ corroborations OR close competitor
-//   else   = Speculative
+//
+//	High   = trigger + ≥3 corroborating signals AND no competitor within 20%
+//	Medium = 2+ corroborations OR close competitor
+//	else   = Speculative
 func calibrateConfidence(hypotheses []model.Hypothesis) {
 	if len(hypotheses) == 0 {
 		return

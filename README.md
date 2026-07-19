@@ -4,7 +4,7 @@
 > Deployments, metric anomalies, log error bursts, Kubernetes events, and traces — all correlated and causally ranked in one command.
 
 [![Go 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](../../actions)
 
 ---
@@ -260,4 +260,4 @@ Rewind is intentionally **not**:
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

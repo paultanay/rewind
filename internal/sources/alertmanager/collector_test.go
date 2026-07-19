@@ -15,16 +15,16 @@ import (
 var base = time.Date(2026, 7, 9, 14, 0, 0, 0, time.UTC)
 
 type amAlert struct {
-	Fingerprint string            `json:"fingerprint"`
+	Fingerprint string `json:"fingerprint"`
 	Status      struct {
 		State string `json:"state"`
 	} `json:"status"`
-	StartsAt    string  `json:"startsAt"`
-	EndsAt      *string `json:"endsAt"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	GeneratorURL string `json:"generatorURL"`
-	Receivers   []struct {
+	StartsAt     string            `json:"startsAt"`
+	EndsAt       *string           `json:"endsAt"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	GeneratorURL string            `json:"generatorURL"`
+	Receivers    []struct {
 		Name string `json:"name"`
 	} `json:"receivers"`
 }
@@ -70,8 +70,10 @@ func TestCollector_Collect_AlertFired(t *testing.T) {
 	alerts := []amAlert{
 		{
 			Fingerprint: "fp-001",
-			Status:      struct{ State string `json:"state"` }{"active"},
-			StartsAt:    startsAt,
+			Status: struct {
+				State string `json:"state"`
+			}{"active"},
+			StartsAt: startsAt,
 			Labels: map[string]string{
 				"alertname": "HighErrorRate",
 				"namespace": "shop",
@@ -82,7 +84,9 @@ func TestCollector_Collect_AlertFired(t *testing.T) {
 				"summary": "checkout error rate above 10%",
 			},
 			GeneratorURL: "http://prometheus:9090/alerts",
-			Receivers:    []struct{ Name string `json:"name"` }{{Name: "pagerduty"}},
+			Receivers: []struct {
+				Name string `json:"name"`
+			}{{Name: "pagerduty"}},
 		},
 	}
 
@@ -138,9 +142,11 @@ func TestCollector_Collect_AlertResolved(t *testing.T) {
 	alerts := []amAlert{
 		{
 			Fingerprint: "fp-002",
-			Status:      struct{ State string `json:"state"` }{"resolved"},
-			StartsAt:    startsAt,
-			EndsAt:      &endsAt,
+			Status: struct {
+				State string `json:"state"`
+			}{"resolved"},
+			StartsAt: startsAt,
+			EndsAt:   &endsAt,
 			Labels: map[string]string{
 				"alertname": "PodCrashLoop",
 				"namespace": "shop",
@@ -197,10 +203,12 @@ func TestCollector_Collect_OutsideWindow(t *testing.T) {
 	alerts := []amAlert{
 		{
 			Fingerprint: "fp-stale",
-			Status:      struct{ State string `json:"state"` }{"resolved"},
-			StartsAt:    startsAt,
-			EndsAt:      &endsAt,
-			Labels: map[string]string{"alertname": "Stale", "namespace": "shop"},
+			Status: struct {
+				State string `json:"state"`
+			}{"resolved"},
+			StartsAt: startsAt,
+			EndsAt:   &endsAt,
+			Labels:   map[string]string{"alertname": "Stale", "namespace": "shop"},
 		},
 	}
 
@@ -232,10 +240,14 @@ func TestCollector_Collect_Deduplication(t *testing.T) {
 	// Same fingerprint twice
 	alerts := []amAlert{
 		{Fingerprint: "fp-dup", StartsAt: startsAt,
-			Status:  struct{ State string `json:"state"` }{"active"},
+			Status: struct {
+				State string `json:"state"`
+			}{"active"},
 			Labels: map[string]string{"alertname": "DupAlert", "namespace": "shop"}},
 		{Fingerprint: "fp-dup", StartsAt: startsAt,
-			Status:  struct{ State string `json:"state"` }{"active"},
+			Status: struct {
+				State string `json:"state"`
+			}{"active"},
 			Labels: map[string]string{"alertname": "DupAlert", "namespace": "shop"}},
 	}
 

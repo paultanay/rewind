@@ -173,12 +173,12 @@ func (c *Collector) Collect(
 // ─── Alertmanager HTTP API ────────────────────────────────────────────────────
 
 type amAlert struct {
-	Fingerprint string            `json:"fingerprint"`
+	Fingerprint string `json:"fingerprint"`
 	Status      struct {
 		State string `json:"state"` // "active", "suppressed", "unprocessed"
 	} `json:"status"`
-	StartsAt    time.Time  `json:"startsAt"`
-	EndsAt      *time.Time `json:"endsAt"`
+	StartsAt    time.Time         `json:"startsAt"`
+	EndsAt      *time.Time        `json:"endsAt"`
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
 	Receivers   []struct {

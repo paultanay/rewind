@@ -175,12 +175,12 @@ func (r *renderer) renderSources() {
 
 // timelineItem is a unified sortable record for the timeline.
 type timelineItem struct {
-	at       time.Time
-	isEvent  bool
-	event    model.Event
-	isCP     bool
-	signal   model.Signal
-	cp       model.ChangePoint
+	at      time.Time
+	isEvent bool
+	event   model.Event
+	isCP    bool
+	signal  model.Signal
+	cp      model.ChangePoint
 }
 
 func (r *renderer) buildTimeline() []timelineItem {

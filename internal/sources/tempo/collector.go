@@ -111,7 +111,7 @@ func (c *Collector) Collect(
 	type svcStats struct {
 		total     int
 		errors    int
-		latencies []float64 // ms
+		latencies []float64       // ms
 		rootSvcs  map[string]bool // services this svc calls
 	}
 	stats := make(map[string]*svcStats)
@@ -218,15 +218,15 @@ func (c *Collector) Collect(
 // ─── Tempo search API ────────────────────────────────────────────────────────
 
 type traceRecord struct {
-	TraceID         string   `json:"traceID"`
-	RootServiceName string   `json:"rootServiceName"`
-	RootTraceName   string   `json:"rootTraceName"`
-	DurationMs      float64  `json:"durationMs"`
+	TraceID         string  `json:"traceID"`
+	RootServiceName string  `json:"rootServiceName"`
+	RootTraceName   string  `json:"rootTraceName"`
+	DurationMs      float64 `json:"durationMs"`
 	// StatusCode is "STATUS_CODE_ERROR" for errored root spans.
 	StartTimeUnixNano string `json:"startTimeUnixNano"`
 	// SpanSets contains span-level data; we only need service names.
-	SpanSets    []spanSet `json:"spanSets"`
-	SpanServices []string // synthesised from SpanSets
+	SpanSets     []spanSet `json:"spanSets"`
+	SpanServices []string  // synthesised from SpanSets
 }
 
 type spanSet struct {

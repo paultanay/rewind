@@ -54,7 +54,7 @@ func startTestServer(t *testing.T) (*server.Server, context.CancelFunc) {
 		t.Fatalf("server.New: %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	go srv.Serve(ctx) //nolint:errcheck
+	go srv.Serve(ctx)                 //nolint:errcheck
 	time.Sleep(25 * time.Millisecond) // allow goroutine to bind
 	return srv, cancel
 }

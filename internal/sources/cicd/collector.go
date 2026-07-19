@@ -199,8 +199,8 @@ func (c *Collector) collectGitHub(
 func (c *Collector) ghListDeployments(ctx context.Context, repo string, window model.TimeRange) ([]ghDeployment, error) {
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/deployments?per_page=100", url.PathEscape(repo))
 	data, err := c.get(ctx, endpoint, map[string]string{
-		"Authorization": "Bearer " + c.GitHub.Token,
-		"Accept":        "application/vnd.github+json",
+		"Authorization":        "Bearer " + c.GitHub.Token,
+		"Accept":               "application/vnd.github+json",
 		"X-GitHub-Api-Version": "2022-11-28",
 	})
 	if err != nil {

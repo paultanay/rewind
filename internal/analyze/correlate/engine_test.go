@@ -13,7 +13,6 @@ import (
 
 var t0 = time.Date(2026, 7, 9, 14, 0, 0, 0, time.UTC)
 
-func mins(n int) time.Duration { return time.Duration(n) * time.Minute }
 
 func makeEvent(id string, kind model.EventKind, entityID string, at time.Time, sev model.Severity) model.Event {
 	return model.Event{

@@ -483,12 +483,6 @@ func maxFloat64(a, b float64) float64 {
 	return b
 }
 
-func maxIntN(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
 
 // Ensure Collector satisfies the sources.Collector interface.
 var _ sources.Collector = (*Collector)(nil)

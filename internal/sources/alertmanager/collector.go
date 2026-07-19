@@ -125,10 +125,6 @@ func (c *Collector) Collect(
 		if title == "" {
 			title = "Alert"
 		}
-		summary := a.Annotations["summary"]
-		if summary == "" {
-			summary = a.Annotations["description"]
-		}
 
 		at := a.StartsAt
 		if at.Before(window.From) {

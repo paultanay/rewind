@@ -26,8 +26,6 @@ import (
 )
 
 const (
-	// maxSpanSamples is the maximum number of exemplar trace IDs stored per service.
-	maxSpanSamples = 50
 	// traceErrorThreshold: trace error rate above this is a TraceErrorSpike event.
 	traceErrorThreshold = 0.05 // 5%
 	// defaultSearchLimit: max traces to inspect from Tempo search API.

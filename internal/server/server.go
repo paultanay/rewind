@@ -109,7 +109,7 @@ func (s *Server) routes() http.Handler {
 		}
 
 		if f, err := distFS.Open(path); err == nil {
-			f.Close()
+			_ = f.Close()
 			fileServer.ServeHTTP(w, r)
 			return
 		}

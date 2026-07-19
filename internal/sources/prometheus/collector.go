@@ -81,7 +81,7 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 		To:   window.From.Add(-24 * time.Hour),
 	}
 
-	queries := append(defaultQueries, c.ExtraQueries...) //nolint:gocritic
+	queries := append(append(defaultQueries, nodeQueries...), c.ExtraQueries...)
 
 	var (
 		mu       sync.Mutex
@@ -192,7 +192,7 @@ func (c *Collector) collectSignal(
 	b2pts := downsample(matrixToPoints(b2Entries))
 
 	// Merge baseline: B1 + B2, capped to 500 points.
-	baseline := append(b1pts, b2pts...) //nolint:gocritic
+	baseline := append(b1pts, b2pts...)
 	baseline = downsample(baseline)
 
 	entityID := entityIDForService(ns, svc)

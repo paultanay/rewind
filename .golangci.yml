@@ -20,6 +20,14 @@ linters:
     - whitespace     # leading/trailing blank lines in blocks
 
 linters-settings:
+  errcheck:
+    # Close() on HTTP response bodies and file handles: the error is rarely
+    # actionable and suppressing it everywhere is idiomatic Go.
+    exclude-functions:
+      - (io.ReadCloser).Close
+      - (io.Closer).Close
+      - (*os.File).Close
+
   govet:
     enable-all: true
     disable:

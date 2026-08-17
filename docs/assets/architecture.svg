@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">Rewind architecture</title>
+  <desc id="desc">Read-only collectors feed a shared incident model, deterministic analysis, a portable bundle, and local renderers.</desc>
+  <style>text{font-family:Inter,Arial,sans-serif;fill:#e8eef4} .label{font-size:16px;font-weight:700}.small{font-size:12px;fill:#b0bfcc}.box{fill:#131e29;stroke:#385066;stroke-width:2}.accent{fill:#58d3c7}.line{stroke:#58d3c7;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" class="accent"/></marker></defs>
+  <rect width="1200" height="480" rx="20" fill="#0b1118"/>
+  <text x="44" y="48" class="label">Rewind · evidence flow</text><text x="44" y="72" class="small">Same incident model, rendered locally and replayed offline.</text>
+  <rect x="44" y="126" width="230" height="236" rx="12" class="box"/><text x="68" y="162" class="label">Read-only sources</text><text x="68" y="198" class="small">Prometheus</text><text x="68" y="224" class="small">Kubernetes</text><text x="68" y="250" class="small">Loki · Tempo</text><text x="68" y="276" class="small">Alertmanager</text><text x="68" y="302" class="small">GitHub · GitLab</text>
+  <rect x="350" y="126" width="230" height="236" rx="12" class="box"/><text x="374" y="162" class="label">Shared model</text><text x="374" y="202" class="small">Events</text><text x="374" y="228" class="small">Signals</text><text x="374" y="254" class="small">Entities + topology</text><text x="374" y="280" class="small">Source health</text><text x="374" y="306" class="small">Verdict + provenance</text>
+  <rect x="656" y="126" width="230" height="236" rx="12" class="box"/><text x="680" y="162" class="label">Deterministic analysis</text><text x="680" y="202" class="small">Change-points</text><text x="680" y="228" class="small">Topology</text><text x="680" y="254" class="small">RW001–RW010</text><text x="680" y="280" class="small">Stable ordering</text><text x="680" y="306" class="small">Ranked hypotheses</text>
+  <rect x="962" y="126" width="190" height="236" rx="12" class="box"/><text x="986" y="162" class="label">Review surfaces</text><text x="986" y="202" class="small">Terminal</text><text x="986" y="228" class="small">JSON / Markdown</text><text x="986" y="254" class="small">.rewind bundle</text><text x="986" y="280" class="small">Loopback UI</text><text x="986" y="306" class="small">Offline replay</text>
+  <path d="M274 244h76M580 244h76M886 244h76" class="line"/>
+  <text x="44" y="424" class="small">No agent · no database · no write access to production systems</text>
+</svg>

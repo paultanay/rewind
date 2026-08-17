@@ -11,7 +11,7 @@ BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 # CGO disabled — single static binary, cross-compile friendly.
 export CGO_ENABLED=0
 
-.PHONY: all build build-ui test race demo demo-all check verify build-all lint vet fmt-check tidy clean install coverage help
+.PHONY: all build build-ui test race demo demo-all check verify build-all lint vet fmt-check repo-check docs-check tidy clean install coverage help
 
 all: build
 
@@ -69,8 +69,16 @@ fmt-check:
 	@test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))" || (echo "Go files need formatting"; exit 1)
 
 ## verify: run the complete local quality gate
-verify: fmt-check vet test lint build
+verify: fmt-check repo-check docs-check vet test lint build
 	@echo "Verification passed."
+
+## repo-check: reject tracked local and process artifacts
+repo-check:
+	pwsh -NoProfile -File scripts/check-repository.ps1
+
+## docs-check: validate required documentation assets and local links
+docs-check:
+	pwsh -NoProfile -File scripts/check-docs.ps1
 
 ## build-all: cross-compile for all release platforms
 build-all:

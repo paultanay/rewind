@@ -1,182 +1,105 @@
 # Architecture
 
-> This document mirrors §5–§12 of the product specification.
-> For the rule catalog detail, see `docs/rules/`.
+Rewind is a read-only pull tool. It gathers a bounded window from configured
+observability systems, translates each response into the shared Go incident
+model, runs deterministic analysis, and renders that same model to terminal,
+Markdown, JSON, or the embedded local UI.
 
----
+![Rewind data flow](assets/architecture.svg)
 
-## 1. Design principles
+## Boundaries
 
-- **Read-only pull model.** Rewind never writes to production systems.
-  Every collector opens a read-only connection, respects source timeouts,
-  and degrades gracefully on failure — a failing source contributes
-  an error to `SourceReport` but never aborts the investigation.
+| Boundary | Responsibility | Trust rule |
+| --- | --- | --- |
+| CLI | Parse scope, time window, output, and config | Never sends data except through configured collectors |
+| Sources | Pull and translate native APIs | Read-only requests; report partial failures |
+| `internal/model` | Shared vocabulary for events, signals, entities, and verdicts | Source-specific types do not cross this boundary |
+| Analysis | Detect change-points, build topology, and apply RW001-RW010 | Same input produces the same sorted result |
+| Bundle | Store incident plus bounded raw source fixtures | Offline replay must not contact live systems |
+| Server/UI | Serve one incident and the embedded frontend locally | Binds to `127.0.0.1`; browser is read-only |
 
-- **Deterministic analysis.** The correlation engine uses static rules,
-  not ML or probabilistic models. Given the same input, Rewind always
-  produces the same verdict. This makes postmortems auditable and unit
-  tests trivial.
+## Runtime flow
 
-- **No storage, no agents.** The tool is a single statically-linked binary.
-  Results are written to stdout or to a portable `.rewind` bundle file.
-  Nothing is persisted between runs.
+1. `rewind investigate` resolves configuration and the requested time range.
+2. Enabled collectors run with the configured source timeout.
+3. The runner records a source report as `ok`, `partial`, `failed`, or
+   `skipped`; useful data is retained even when a collector returns an error.
+4. Collectors translate native identities into canonical IDs such as
+   `service/shop/checkout` and return model events/signals/entities.
+5. Analysis detects signal change-points, coalesces repeated restarts, builds
+   explicit topology, and applies the correlation rules.
+6. Results are sorted with stable tie-breakers before rendering or export.
+7. A bundle contains `incident.json` and optional source fixtures. `rewind ui`
+   reads it locally and exposes only the incident JSON endpoint.
 
-- **Bundle portability.** A `.rewind` bundle (zip + JSON) contains enough
-  raw data to reproduce the terminal and web UI output on any machine
-  with no network access.
-
----
-
-## 2. Component overview
-
-```
-cmd/rewind   (cobra CLI)
-  investigate | ui | demo | sources | explain | export | import
-
-        ▼ buildRegistry()
-  sources (parallel errgroup, 15s timeout each)
-  prometheus/  kubernetes/  loki/  tempo/  alertmanager/  cicd/
-
-        ▼ model.Incident  (Events + Signals + Entities)
-
-  analyze.RunFull
-  ① changepoint.Detect  (CUSUM + PELT) → Anomaly events
-  ② correlate.CoalesceRestarts (RW009) → CrashLoop events
-  ③ topology.Build → EntityGraph (BFS adjacency)
-  ④ correlate.Run (RW001–RW010) → Hypotheses with scores
-  ⑤ correlate.Assemble → Verdict (sorted, calibrated)
-
-        ▼
-  render/terminal  |  render/markdown  |  server/ (embedded SPA)
-```
-
----
-
-## 3. Data model
-
-### `model.Incident`
-
-The central data structure. Created by the CLI, populated by collectors,
-enriched by the analysis engine, then rendered.
-
-```
-Incident
-├── ID             string           unique ID (timestamp-based)
-├── Window         TimeRange        investigation window (from → to)
-├── Scope          Scope            namespaces + services filter
-├── Meta           Meta             version, schema, timestamps
-├── Entities[]     Entity           nodes in the topology graph
-├── Events[]       Event            deploys, alerts, OOMKills, anomalies…
-├── Signals[]      Signal           metric time series (points + metadata)
-├── Sources[]      SourceReport     per-source status + counts
-└── Verdict        *Verdict         correlation engine output
-```
-
-### Event kind taxonomy
-
-`Deploy`, `ConfigChange`, `OOMKill`, `Restart`, `PodKilled`, `NodePressure`,
-`ProbeFailed`, `AlertFired`, `AlertResolved`, `LogBurst`, `TraceErrorSpike`,
-`CrashLoop` (synthetic, RW009), `Anomaly` (synthetic, changepoint).
-
-### Metric constants
-
-`latency.p99`, `latency.p95`, `error.rate`, `cpu.usage`, `cpu.throttle`,
-`memory.usage`, `restarts`, `replicas`, `queue.lag`, `disk.io`,
-`trace.error.rate`, `trace.latency.p99`.
-
----
-
-## 4. Source collectors
-
-Each collector implements `sources.Collector`:
+## Collector contract
 
 ```go
 type Collector interface {
-    Name()    string
+    Name() string
     Check(ctx context.Context) error
     Collect(ctx context.Context, scope Scope, window TimeRange) CollectResult
 }
 ```
 
-| Collector | Key signals | Key events |
-|-----------|------------|------------|
-| Prometheus | latency.p99, error.rate, cpu.*, memory.usage | — |
-| Kubernetes | — | Deploy, OOMKill, Restart, ProbeFailed, NodePressure |
-| GitHub/GitLab | — | Deploy (from pipeline runs) |
-| Loki | log.error.rate | LogBurst |
-| Tempo | trace.error.rate, trace.latency.p99 | TraceErrorSpike; topology edges |
-| Alertmanager | — | AlertFired, AlertResolved |
+Collectors must:
 
----
+- use read-only APIs and honor cancellation;
+- translate native identifiers into `internal/model` identities;
+- return useful data alongside an error when only part of a source failed;
+- keep bounded samples and deterministic ordering; and
+- include enough source reference to let a reviewer understand provenance.
 
-## 5. Change-point detection
+## Analysis contract
 
-Two detectors run on every signal (`internal/analyze/changepoint/`):
+The correlation engine is rule-based, not an ML classifier. A hypothesis is a
+ranked explanation assembled from temporal distance, magnitude, topology, and
+corroboration. A confidence label is a decision-support signal, not a proof.
 
-**CUSUM** — detects persistent mean shifts. Threshold: `k * stdev(series)`, k=1.5.
+Important invariants:
 
-**PELT** — detects multiple change-points via penalised least squares (BIC penalty).
+- alerts add corroboration but never become a trigger (`RW010`);
+- hypotheses with the same trigger are merged and sorted deterministically;
+- canonical entity IDs are used for topology and rendering; and
+- missing or failed sources remain visible in the result.
 
-Results are merged and de-duplicated by proximity (within 2 minutes → keep
-highest-confidence). Each anomaly becomes a `model.Event{Kind: "Anomaly"}`.
+## Local HTTP API
 
----
+The server is stateless and bound to loopback:
 
-## 6. Correlation engine (RW001–RW010)
+| Endpoint | Response |
+| --- | --- |
+| `GET /api/health` | `{ "status": "ok" }` |
+| `GET /api/incident` | JSON-encoded `model.Incident` |
+| `GET /*` | Embedded UI with SPA fallback |
 
-Located in `internal/analyze/correlate/`. The engine is a rule catalog
-where each rule returns zero or more `Hypothesis` structs.
+The UI makes one read-only request to `/api/incident`. It does not send bundle
+data to a remote service or require a third-party asset host.
 
-**Scoring:**
-```
-score = temporal_score(gap) × magnitude_factor × Σ(corroboration_bonus)
-```
+## Failure semantics
 
-**Confidence tiers:** `HIGH` (≥0.7), `MEDIUM` (≥0.45), `LOW` (≥0.25), `SPECULATIVE` (<0.25).
+One unavailable source does not turn a useful investigation into a false
+success or abort the other collectors. The overall CLI exit status still
+communicates critical findings and total source failure:
 
-**Invariants:**
-- `RW010`: `AlertFired` events **never** create trigger hypotheses. They add +0.10 as corroboration.
-- Duplicate triggers (same event, multiple rules) are merged with concatenated chains.
-- Hypotheses with score < 0.10 are pruned.
-
----
-
-## 7. Bundle format
-
-A `.rewind` bundle is a ZIP archive:
-
-```
-incident.json          model.Incident (schemaVersion mandatory)
-sources/
-  prometheus.json      raw CollectResult per source
-  kubernetes.json
-  …
-```
-
-- `export → import → export` is byte-identical (modulo Meta.CreatedAt)
-- Unknown JSON fields preserved (forward-compatible)
-- Signals downsampled to 500 points max; logs sampled to 200 lines max (< 5 MB)
-
----
-
-## 8. Web UI
-
-`internal/server/` — SPA embedded via `//go:embed ui/dist`. Bound to `127.0.0.1` only.
-
-```
-GET /api/incident   model.Incident as JSON
-GET /api/health     {"status":"ok"}
-GET /*              SPA (index.html fallback for client-side routing)
-```
-
----
-
-## 9. Exit codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Complete, no Critical findings |
-| 1 | Complete, ≥1 HIGH/Critical finding |
-| 2 | Usage error |
-| 3 | All sources failed |
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Completed without critical findings |
+| 1 | Completed with a critical/high-confidence finding |
+| 2 | Usage or configuration error |
+| 3 | All configured sources failed |
 | 4 | Internal error |
+
+## Repository layout
+
+```text
+cmd/rewind/              CLI commands
+internal/model/          shared incident contract
+internal/sources/        Prometheus, Kubernetes, Loki, Tempo, alert, CI/CD
+internal/analyze/        change-point, topology, and correlation rules
+internal/bundle/         portable export/import/replay
+internal/server/         loopback API and embedded UI
+web/                     maintainable frontend source and build
+docs/                    public concepts, source, rule, and operations guides
+testdata/                offline fixtures and Docker practical test
+```

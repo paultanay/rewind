@@ -82,7 +82,7 @@ Typical bundle size: **1–5 MB** for a 45-minute incident window.
 
 ---
 
-## Reproducibility
+## Offline and reproducibility guarantees
 
 Export → import → export **must** produce byte-identical output, with the
 exception of `meta.createdAt` which reflects the time of each export.
@@ -91,6 +91,10 @@ This is guaranteed by:
 - Deterministic JSON serialisation (sorted map keys via standard `encoding/json`)
 - Fixed tar entry mod times (Unix epoch 0)
 - Gzip best-compression level
+
+The embedded UI reads `incident.json` through the local loopback server and does
+not contact Prometheus, Loki, Tempo, Kubernetes, or any remote asset host while
+viewing a bundle.
 
 ---
 

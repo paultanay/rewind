@@ -23,6 +23,16 @@ jobs:
         shell: pwsh
         run: ./scripts/check-repository.ps1
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    needs: [hygiene]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check documentation assets and links
+        shell: pwsh
+        run: ./scripts/check-docs.ps1
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -71,7 +81,7 @@ jobs:
 
   build:
     name: Build
-    needs: [hygiene, lint, test]
+    needs: [docs, hygiene, lint, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

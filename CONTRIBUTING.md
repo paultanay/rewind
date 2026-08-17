@@ -1,7 +1,7 @@
 # Contributing to Rewind
 
-Thanks for helping improve Rewind. Start with an issue for substantial
-behavior changes so the incident contract and replay guarantees stay explicit.
+Thanks for helping improve Rewind. Start with an issue for substantial behavior
+changes so the incident contract and replay guarantees stay explicit.
 
 ## Development
 
@@ -19,5 +19,15 @@ use canonical entity IDs, sort their output, and add an offline fixture test
 when replay behavior changes.
 
 Do not commit credentials, generated binaries, incident bundles, or local
-configuration. Pull requests should include the verification commands run and
-call out known limitations.
+configuration. Frontend dependencies belong in `web/package-lock.json`, not in
+`web/node_modules`.
+
+Pull requests should include:
+
+- the user-visible or operational behavior that changed;
+- tests and verification commands actually run;
+- fixture or bundle compatibility considerations; and
+- known limitations and follow-up work.
+
+Keep commit messages factual and scoped. Avoid claiming production readiness,
+root-cause certainty, or performance characteristics without evidence.

@@ -1,0 +1,77 @@
+services:
+  checkout:
+    build: ./services
+    environment:
+      SERVICE: checkout
+      NAMESPACE: shop
+      PORT: 8080
+      DOWNSTREAM_URL: http://payments:8080
+      LOKI_URL: http://loki:3100
+    ports: ["18080:8080"]
+    networks: [rewind-test]
+    healthcheck:
+      test: ["CMD", "/practical-service", "-healthcheck"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+
+  payments:
+    build: ./services
+    environment:
+      SERVICE: payments
+      NAMESPACE: shop
+      PORT: 8080
+      LOKI_URL: http://loki:3100
+    ports: ["18081:8080"]
+    networks: [rewind-test]
+    healthcheck:
+      test: ["CMD", "/practical-service", "-healthcheck"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+
+  loadgen:
+    build: ./services
+    environment:
+      MODE: loadgen
+      TARGET_URL: http://checkout:8080
+    depends_on:
+      checkout: {condition: service_healthy}
+      payments: {condition: service_healthy}
+    networks: [rewind-test]
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["19090:9090"]
+    networks: [rewind-test]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports: ["19093:9093"]
+    networks: [rewind-test]
+
+  loki:
+    image: grafana/loki:2.9.7
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+    ports: ["13100:3100"]
+    networks: [rewind-test]
+
+  tempo:
+    image: grafana/tempo:2.4.2
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+    ports: ["13200:3200"]
+    networks: [rewind-test]
+
+networks:
+  rewind-test:
+    name: rewind-practical-test

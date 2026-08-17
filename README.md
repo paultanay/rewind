@@ -47,6 +47,13 @@ rewind ui incident.rewind
       → 19.9× error.rate change-point 8m after deploy
 ```
 
+## Practical distributed test
+
+For a black-box test against Dockerized checkout/payments services plus
+Prometheus, Alertmanager, Loki, and Tempo, see
+`testdata/practical/README.md`. It injects a failure, exports a bundle, stops
+the observability stack, and verifies offline replay.
+
 ---
 
 ## What it does

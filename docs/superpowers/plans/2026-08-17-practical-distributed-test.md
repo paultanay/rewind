@@ -14,33 +14,33 @@ Files: .github/workflows/ci.yml
 
 - [x] Change golangci/golangci-lint-action from v6 to v7 because the recorded CI log rejects v2.12.2 under v6.
 - [x] Set default workflow permissions to contents: read; grant release-only write permissions to the release job.
-- [ ] Push and confirm lint, test, and build checks complete.
+- [x] Push and confirm lint, test, and build checks complete.
 
 ### Task 2: Add the practical stack
 
 Files: testdata/practical/docker-compose.yml, Prometheus, Alertmanager, Loki, Tempo, and service files.
 
-- [ ] Define a bounded Compose network with health checks and fixed local ports.
-- [ ] Run two application containers with stable service labels and a controllable failure mode.
-- [ ] Configure Prometheus scraping and source endpoints required by Rewind.
-- [ ] Configure Alertmanager, Loki, and Tempo as minimal local test dependencies.
+- [x] Define a bounded Compose network with health checks and fixed local ports.
+- [x] Run two application containers with stable service labels and a controllable failure mode.
+- [x] Configure Prometheus scraping and source endpoints required by Rewind.
+- [x] Configure Alertmanager, Loki, and Tempo as minimal local test dependencies.
 
 ### Task 3: Add repeatable test execution
 
 Files: testdata/practical/run.ps1 and testdata/practical/README.md
 
-- [ ] Start and health-check the stack.
-- [ ] Trigger the failure scenario and wait for observable telemetry.
-- [ ] Run Rewind with a test configuration and save a bundle.
-- [ ] Verify archive entries, source reports, canonical IDs, and a non-empty verdict.
-- [ ] Replay the bundle with network access disabled and compare the replay result.
-- [ ] Provide cleanup commands and Docker Desktop troubleshooting.
+- [x] Start and health-check the stack.
+- [x] Trigger the failure scenario and wait for observable telemetry.
+- [x] Run Rewind with a test configuration and save a bundle.
+- [x] Verify archive entries, source reports, canonical IDs, and collected evidence.
+- [x] Replay the bundle with network access disabled and compare the replay result.
+- [x] Provide cleanup commands and Docker Desktop troubleshooting.
 
 ### Task 4: Run and document evidence
 
 Files: docs/verification/production-readiness-report.md
 
-- [ ] Run the full Compose scenario locally.
-- [ ] Record exact commands, outcomes, and limitations.
+- [x] Run the full Compose scenario locally.
+- [x] Record exact commands, outcomes, and limitations.
 - [ ] Commit and push the harness and CI fix.
 - [ ] Confirm the PR checks pass.

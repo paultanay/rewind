@@ -42,6 +42,20 @@ The following passed on this branch:
 - embedded UI JavaScript node --check
 - git diff --check
 
+The Docker practical test also passed from a clean Compose stack:
+
+- checkout -> payments load path generated healthy and failure telemetry.
+- Prometheus returned 5 signals for checkout.
+- Alertmanager returned the injected critical alert event.
+- Loki and Tempo endpoints were reachable.
+- The current local harness validates Tempo reachability but does not yet
+  inject a production-compatible trace payload; Tempo signals remain a
+  follow-up integration test.
+- The exported archive was replayed after all Compose containers were stopped.
+- Live and replay entity/event/signal counts matched.
+- The result correctly reported no trigger because this scenario contained no
+  deployment or CI/CD trigger; alert evidence alone did not create a cause.
+
 ## Known limitations
 
 - Visual browser verification was unavailable; see ui-checklist.md.

@@ -1,0 +1,21 @@
+server:
+  http_listen_port: 3200
+distributor:
+  receivers:
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces
+    wal:
+      path: /tmp/tempo/wal
+compactor:
+  compaction:
+    block_retention: 1h
+metrics_generator:
+  storage:
+    path: /tmp/tempo/generator

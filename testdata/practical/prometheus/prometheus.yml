@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: checkout
+    static_configs:
+      - targets: [checkout:8080]
+  - job_name: payments
+    static_configs:
+      - targets: [payments:8080]

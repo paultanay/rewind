@@ -191,14 +191,8 @@ type amAlert struct {
 func (c *Collector) fetchAlerts(ctx context.Context, scope model.Scope) ([]amAlert, error) {
 	reqURL := strings.TrimRight(c.cfg.URL, "/") + "/api/v2/alerts"
 	params := url.Values{}
-	// Filter by namespace if provided.
-	for _, ns := range scope.Namespaces {
-		params.Add("filter", fmt.Sprintf(`namespace="%s"`, ns))
-	}
-	// Also include service-level filters.
-	for _, svc := range scope.Services {
-		params.Add("filter", fmt.Sprintf(`app="%s"`, svc))
-	}
+	addScopeFilter(params, "namespace", scope.Namespaces)
+	addScopeFilter(params, "app", scope.Services)
 	if len(params) > 0 {
 		reqURL += "?" + params.Encode()
 	}
@@ -230,6 +224,26 @@ func (c *Collector) fetchAlerts(ctx context.Context, scope model.Scope) ([]amAle
 		return nil, fmt.Errorf("alertmanager response parse: %w", err)
 	}
 	return alerts, nil
+}
+
+func addScopeFilter(params url.Values, label string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+	if len(values) == 1 {
+		params.Add("filter", fmt.Sprintf(`%s="%s"`, label, escapeMatcherValue(values[0])))
+		return
+	}
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, escapeMatcherValue(value))
+	}
+	params.Add("filter", fmt.Sprintf(`%s=~"^(%s)$"`, label, strings.Join(quoted, "|")))
+}
+
+func escapeMatcherValue(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	return strings.ReplaceAll(value, `"`, `\"`)
 }
 
 func (c *Collector) setHeaders(req *http.Request) {

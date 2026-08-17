@@ -22,7 +22,7 @@ const (
 )
 
 // EventKind is the taxonomy of discrete point-in-time occurrences Rewind
-// recognises. The analysis engine's rule IDs reference these kinds directly.
+// recognizes. The analysis engine's rule IDs reference these kinds directly.
 type EventKind string
 
 const (
@@ -182,7 +182,7 @@ type SourceRef struct {
 }
 
 // Event is a discrete, point-in-time occurrence on a specific entity.
-// All six source collectors produce Events; the analysis engine may synthesise
+// All six source collectors produce Events; the analysis engine may synthesize
 // additional ones (e.g. CrashLoop via RW009 coalescing).
 type Event struct {
 	ID       string    `json:"id"`
@@ -250,7 +250,7 @@ const (
 	SourceStatusSkipped SourceStatus = "skipped"
 )
 
-// SourceReport summarises what a collector found (or why it didn't).
+// SourceReport summarizes what a collector found (or why it didn't).
 type SourceReport struct {
 	Name     string       `json:"name"`
 	Status   SourceStatus `json:"status"`
@@ -279,7 +279,7 @@ type Meta struct {
 // Incident is the root type. Every renderer, exporter, and the analysis engine
 // receive one Incident and produce their output from it alone.
 // The bundle format is: gzipped tar containing incident.json (this struct
-// JSON-serialised) plus sources/*.json raw fixtures for replay.
+// JSON-serialized) plus sources/*.json raw fixtures for replay.
 type Incident struct {
 	ID       string         `json:"id"`
 	Window   TimeRange      `json:"window"`

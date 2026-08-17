@@ -54,5 +54,5 @@ func ParseTime(s string, now time.Time) (time.Time, error) {
 		return t, nil
 	}
 
-	return time.Time{}, fmt.Errorf("unrecognised time format %q (accepted: RFC3339, HH:MM, HH:MM:SS, -45m)", s)
+	return time.Time{}, fmt.Errorf("unrecognized time format %q (accepted: RFC3339, HH:MM, HH:MM:SS, -45m)", s)
 }

@@ -71,7 +71,7 @@ var defaultQueries = []QueryTemplate{
 		Unit: "ms",
 	},
 
-	// ── USE: CPU utilisation ───────────────────────────────────────────────
+	// ── USE: CPU utilization ───────────────────────────────────────────────
 	{
 		Metric: model.MetricCPUUsage,
 		PromQL: `sum(rate(container_cpu_usage_seconds_total{` +
@@ -91,7 +91,7 @@ var defaultQueries = []QueryTemplate{
 		Unit: "%",
 	},
 
-	// ── USE: Memory utilisation ────────────────────────────────────────────
+	// ── USE: Memory utilization ────────────────────────────────────────────
 	{
 		Metric: model.MetricMemoryUsage,
 		PromQL: `sum(container_memory_working_set_bytes{` +

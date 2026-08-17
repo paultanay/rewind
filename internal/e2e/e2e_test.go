@@ -151,7 +151,7 @@ func TestE2E_BadDeployScenario(t *testing.T) {
 		},
 	}
 
-	// ── Analyse ───────────────────────────────────────────────────────────────
+	// ── Analyze ───────────────────────────────────────────────────────────────
 	inc = analyze.Run(inc)
 
 	// Verify change-points were detected on incident signals.

@@ -1,7 +1,9 @@
 package model
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,27 +27,23 @@ func NewSignalID() string {
 	return "sig-" + uuid.New().String()[:12]
 }
 
-// NewEntityID constructs a deterministic, human-readable entity ID from its
-// kind and namespace/name. Using a deterministic scheme means the topology
-// graph edges survive bundle round-trips without fixup.
-// Example: "svc/shop/checkout", "pod/shop/checkout-7d9f-abc12"
+// NewStableSignalID returns the same signal ID for the same source identity,
+// entity, and metric. Collectors use it so concurrent collection and bundle
+// replay do not create meaningless ID churn.
+func NewStableSignalID(source, entityID, metric string) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{source, entityID, metric}, "\x00")))
+	return fmt.Sprintf("sig-%x", sum[:6])
+}
+
+// NewEntityID constructs a canonical deterministic entity ID. Invalid input
+// returns an empty string; callers that need an actionable validation error
+// should call CanonicalEntityID directly.
 func NewEntityID(kind EntityKind, namespace, name string) string {
-	switch kind {
-	case EntityKindService:
-		return fmt.Sprintf("svc/%s/%s", namespace, name)
-	case EntityKindDeployment:
-		return fmt.Sprintf("deploy/%s/%s", namespace, name)
-	case EntityKindPod:
-		return fmt.Sprintf("pod/%s/%s", namespace, name)
-	case EntityKindNode:
-		return fmt.Sprintf("node/%s", name)
-	case EntityKindQueue:
-		return fmt.Sprintf("queue/%s/%s", namespace, name)
-	case EntityKindDatabase:
-		return fmt.Sprintf("db/%s/%s", namespace, name)
-	default:
-		return fmt.Sprintf("entity/%s/%s", namespace, name)
+	id, err := CanonicalEntityID(kind, namespace, name)
+	if err != nil {
+		return ""
 	}
+	return id
 }
 
 // SeverityRank returns a numeric rank so severities can be compared / sorted.

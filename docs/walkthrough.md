@@ -34,7 +34,7 @@ ways and run `rewind investigate` after each to validate the verdict.
 ## Prerequisites
 
 - Docker Desktop (already installed ✅)
-- Go 1.23+ (already installed ✅)
+- Go 1.25+ (already installed ✅)
 - `rewind` binary built locally
 
 ---

@@ -122,9 +122,9 @@ func TestCollector_Collect_AlertFired(t *testing.T) {
 	if ev.Title != "HighErrorRate" {
 		t.Errorf("expected title 'HighErrorRate', got %q", ev.Title)
 	}
-	// Entity should be svc/shop/checkout (app label)
-	if ev.EntityID != "svc/shop/checkout" {
-		t.Errorf("expected entity 'svc/shop/checkout', got %q", ev.EntityID)
+	// Entity should be service/shop/checkout (app label)
+	if ev.EntityID != "service/shop/checkout" {
+		t.Errorf("expected entity 'service/shop/checkout', got %q", ev.EntityID)
 	}
 	// SourceRef should carry the generatorURL
 	if ev.SourceRef.URL != "http://prometheus:9090/alerts" {

@@ -91,7 +91,7 @@ func (c *Collector) Check(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("loki connectivity check: %w", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("loki returned HTTP %d", resp.StatusCode)
 	}
@@ -187,7 +187,7 @@ func (c *Collector) collectForTarget(
 }
 
 // detectBursts finds periods where the error rate significantly exceeds the
-// baseline and synthesises LogBurst events. For each burst it fetches sample
+// baseline and synthesizes LogBurst events. For each burst it fetches sample
 // lines for the Detail field.
 func (c *Collector) detectBursts(
 	ctx context.Context,
@@ -283,7 +283,7 @@ func (c *Collector) fetchSamples(ctx context.Context, streamSel string, at time.
 	resp, err := c.client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		return ""
 	}
@@ -343,7 +343,7 @@ func (c *Collector) queryRange(ctx context.Context, window model.TimeRange, step
 			return nil, err
 		}
 		body, err = io.ReadAll(io.LimitReader(resp.Body, 4*1024*1024))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -431,7 +431,7 @@ func buildStreamSelector(ns, svc string) string {
 
 func entityIDFor(ns, svc string) string {
 	if svc != "" {
-		return "svc/" + ns + "/" + svc
+		return model.NewEntityID(model.EntityKindService, ns, svc)
 	}
 	return "ns/" + ns
 }

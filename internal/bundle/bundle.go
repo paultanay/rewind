@@ -5,7 +5,7 @@
 // Format invariants:
 //   - schemaVersion field must be present; current version: 1.
 //   - export → import → export is byte-identical modulo Meta.CreatedAt.
-//   - Unknown JSON fields are preserved on read (forward-compatibility).
+//   - Unknown JSON fields are ignored on read (forward-compatible parsing).
 //   - Bundles are designed to stay under ~5 MB; downsampling is enforced by
 //     collectors, not here.
 //
@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -99,10 +99,17 @@ func write(inc model.Incident, rawSources map[string][]byte, w io.Writer) error 
 	}
 
 	// ── sources/*.json ───────────────────────────────────────────────────────
-	for name, data := range rawSources {
-		// Sanitise name: strip path separators to prevent tar path traversal.
-		safeName := strings.ReplaceAll(filepath.Base(name), "..", "")
-		entryPath := sourcesDir + "/" + safeName + ".json"
+	names := make([]string, 0, len(rawSources))
+	for name := range rawSources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		data := rawSources[name]
+		if !validSourceName(name) {
+			return fmt.Errorf("bundle: invalid source name %q", name)
+		}
+		entryPath := sourcesDir + "/" + name + ".json"
 		if err := writeEntry(tw, entryPath, data); err != nil {
 			return err
 		}
@@ -151,7 +158,7 @@ func Read(r io.Reader) (*Bundle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("bundle: gzip reader: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	tr := tar.NewReader(gz)
 	b := &Bundle{RawSources: make(map[string][]byte)}
@@ -163,6 +170,9 @@ func Read(r io.Reader) (*Bundle, error) {
 		}
 		if err != nil {
 			return nil, fmt.Errorf("bundle: read tar: %w", err)
+		}
+		if (hdr.Name == incidentFileName || strings.HasPrefix(hdr.Name, sourcesDir+"/")) && hdr.Typeflag != tar.TypeReg {
+			return nil, fmt.Errorf("bundle: entry %q is not a regular file", hdr.Name)
 		}
 
 		// Guard against tar bombs: 50 MB per-entry limit.
@@ -183,7 +193,13 @@ func Read(r io.Reader) (*Bundle, error) {
 		case strings.HasPrefix(hdr.Name, sourcesDir+"/"):
 			// Strip "sources/" prefix and ".json" suffix for the key.
 			name := strings.TrimPrefix(hdr.Name, sourcesDir+"/")
+			if !strings.HasSuffix(name, ".json") {
+				return nil, fmt.Errorf("bundle: invalid source entry %q", hdr.Name)
+			}
 			name = strings.TrimSuffix(name, ".json")
+			if !validSourceName(name) {
+				return nil, fmt.Errorf("bundle: invalid source entry %q", hdr.Name)
+			}
 			b.RawSources[name] = data
 		default:
 			// Unknown entries are silently skipped (forward-compatibility).
@@ -197,6 +213,11 @@ func Read(r io.Reader) (*Bundle, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+func validSourceName(name string) bool {
+	return name != "" && name != "." && name != ".." &&
+		!strings.Contains(name, "..") && !strings.ContainsAny(name, `/\\`)
 }
 
 func validateSchema(v int) error {

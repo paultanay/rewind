@@ -1,6 +1,6 @@
 # Rewind — Makefile
 # Targets are designed to be composable and CI-friendly.
-# Requires: Go 1.22+, golangci-lint, goreleaser (for release).
+# Requires: Go 1.25+, golangci-lint v2, goreleaser (for release).
 
 BINARY      := rewind
 MODULE      := github.com/paultanay/rewind
@@ -11,7 +11,7 @@ BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 # CGO disabled — single static binary, cross-compile friendly.
 export CGO_ENABLED=0
 
-.PHONY: all build test race demo check build-all lint vet tidy clean install coverage help
+.PHONY: all build test race demo demo-all check verify build-all lint vet fmt-check tidy clean install coverage help
 
 all: build
 
@@ -58,6 +58,14 @@ coverage:
 ## check: vet + test + build (fast pre-commit check)
 check: vet test build
 	@echo "All checks passed."
+
+## fmt-check: verify that all Go files are gofmt-formatted
+fmt-check:
+	@test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))" || (echo "Go files need formatting"; exit 1)
+
+## verify: run the complete local quality gate
+verify: fmt-check vet test lint build
+	@echo "Verification passed."
 
 ## build-all: cross-compile for all release platforms
 build-all:

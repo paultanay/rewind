@@ -3,7 +3,7 @@
 > **Reconstruct a production incident as a single, scrubbable timeline.**
 > Deployments, metric anomalies, log error bursts, Kubernetes events, and traces — all correlated and causally ranked in one command.
 
-[![Go 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
+[![Go 1.25+](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](../../actions)
 
@@ -93,8 +93,8 @@ rewind explain RW010      # alert corroboration — alerts are symptoms, never t
 | RW004 | CPU Saturation → Latency | CPU throttle CP precedes latency CP by ≤5m |
 | RW005 | Upstream Cascade | Upstream error CP precedes downstream CP + call-graph path |
 | RW006 | Node Pressure → Eviction | NodePressure → PodKilled within 5m |
-| RW007 | Probe Failure → Restart | ProbeFailed → Restart within 3m |
-| RW008 | Log Burst Correlation | LogBurst ↔ error.rate CP within 5m (corroboration) |
+| RW007 | Queue Lag → Consumer Latency | queue.lag change-point precedes consumer latency within 10m |
+| RW008 | Scale Down → Saturation | scale-down precedes CPU or latency saturation within 5m |
 | RW009 | CrashLoop Detection | ≥3 restarts in 10m → synthetic CrashLoop event |
 | RW010 | Alert Corroboration | AlertFired adds evidence, **never** creates a trigger |
 

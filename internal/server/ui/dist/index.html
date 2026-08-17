@@ -1,543 +1,228 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rewind — Incident Replay</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Rewind / Incident workspace</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --border:   #30363d;
-      --text:     #e6edf3;
-      --muted:    #8b949e;
-      --accent:   #58a6ff;
-      --red:      #f85149;
-      --yellow:   #d29922;
-      --green:    #3fb950;
-      --purple:   #bc8cff;
-      --sidebar-w: 320px;
+      --ink: #e9eff7;
+      --muted: #8b9bb0;
+      --faint: #63748a;
+      --canvas: #08111f;
+      --panel: #0e1b2d;
+      --panel-strong: #12233a;
+      --line: #213650;
+      --blue: #68a9ff;
+      --cyan: #4bd6cf;
+      --green: #61d49a;
+      --amber: #f0b45b;
+      --red: #f47e83;
+      --violet: #b39aff;
+      --radius: 12px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, .22);
     }
-
+    *, *::before, *::after { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 14px;
-      line-height: 1.5;
-      min-height: 100vh;
+      margin: 0;
+      min-width: 320px;
+      background: radial-gradient(circle at 75% -10%, #153152 0, transparent 38%), var(--canvas);
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     }
-
-    /* ── Layout ── */
-    #app { display: flex; height: 100vh; overflow: hidden; }
-    #sidebar {
-      width: var(--sidebar-w);
-      min-width: var(--sidebar-w);
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .shell { min-height: 100vh; }
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+      min-height: 68px; padding: 0 32px;
+      background: rgba(8, 17, 31, .88); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(18px);
     }
-    #main { flex: 1; overflow-y: auto; padding: 24px 32px; }
-
-    /* ── Sidebar ── */
-    .sidebar-header {
-      padding: 20px 20px 16px;
-      border-bottom: 1px solid var(--border);
-    }
-    .sidebar-header .logo {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      color: var(--accent);
-    }
-    .sidebar-header .logo span { color: var(--muted); font-weight: 400; }
-    .incident-id {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 4px;
-      font-family: "SFMono-Regular", Consolas, monospace;
-    }
-
-    .sidebar-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
-    .sidebar-section h3 {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-
-    /* ── Verdict card ── */
-    .verdict-card {
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-    }
-    .verdict-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 14px;
-      background: rgba(88, 166, 255, 0.06);
-      border-bottom: 1px solid var(--border);
-    }
-    .confidence-badge {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 20px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
-    .conf-high   { background: rgba(63,185,80,0.15);  color: var(--green); }
-    .conf-medium { background: rgba(210,153,34,0.15); color: var(--yellow); }
-    .conf-low,
-    .conf-speculative { background: rgba(139,148,158,0.15); color: var(--muted); }
-    .conf-none   { background: rgba(139,148,158,0.1); color: var(--muted); }
-
-    .verdict-body { padding: 12px 14px; }
-    .trigger-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-    .trigger-title { font-size: 13px; font-weight: 600; color: var(--text); }
-    .verdict-explanation {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    .rules-row {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-    .rule-chip {
-      font-size: 11px;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(188,140,255,0.12);
-      color: var(--purple);
-    }
-
-    .chain-list { margin-top: 10px; list-style: none; }
-    .chain-list li {
-      position: relative;
-      padding-left: 18px;
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-    .chain-list li::before {
-      content: "→";
-      position: absolute;
-      left: 0;
-      color: var(--accent);
-    }
-
-    .no-verdict {
-      padding: 16px 14px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* ── Sources ── */
-    .source-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      padding: 4px 0;
-    }
-    .src-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .src-ok      { background: var(--green); }
-    .src-err     { background: var(--red); }
-    .src-timeout { background: var(--yellow); }
-    .src-name    { color: var(--text); flex: 1; }
-    .src-counts  { color: var(--muted); font-size: 11px; }
-
-    /* ── Main content ── */
-    h1.page-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .window-line {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 24px;
-      font-family: "SFMono-Regular", Consolas, monospace;
-    }
-
-    /* ── Timeline ── */
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 14px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .timeline { list-style: none; }
-    .tl-item {
-      display: flex;
-      gap: 14px;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(48,54,61,0.5);
-    }
-    .tl-item:last-child { border-bottom: none; }
-
-    .tl-time {
-      font-size: 12px;
-      color: var(--muted);
-      font-family: "SFMono-Regular", Consolas, monospace;
-      min-width: 62px;
-      padding-top: 2px;
-    }
-    .tl-icon {
-      font-size: 15px;
-      min-width: 20px;
-      text-align: center;
-      padding-top: 1px;
-    }
-    .tl-body { flex: 1; min-width: 0; }
-    .tl-title {
-      font-size: 13px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .tl-entity {
-      font-size: 11px;
-      color: var(--muted);
-      font-family: "SFMono-Regular", Consolas, monospace;
-      margin-top: 2px;
-    }
-    .tl-detail {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 3px;
-    }
-    .sev-critical { color: var(--red); }
-    .sev-notable  { color: var(--yellow); }
-    .sev-info     { color: var(--muted); }
-
-    /* ── Anomalies section ── */
-    .anomaly-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
-      margin-bottom: 32px;
-    }
-    .anomaly-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-    }
-    .anomaly-metric {
-      font-size: 11px;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      color: var(--accent);
-      margin-bottom: 4px;
-    }
-    .anomaly-entity {
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 8px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .anomaly-stats {
-      display: flex;
-      gap: 14px;
-    }
-    .anomaly-stat { font-size: 12px; color: var(--muted); }
-    .anomaly-stat strong { color: var(--text); }
-
-    /* ── Loading / error ── */
-    .status-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      gap: 12px;
-      color: var(--muted);
-    }
-    .status-screen .icon { font-size: 36px; }
-    .status-screen p { font-size: 14px; }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark { width: 32px; height: 32px; color: var(--cyan); flex: 0 0 auto; }
+    .brand-name { font-weight: 780; letter-spacing: .08em; font-size: 14px; }
+    .brand-sub { color: var(--muted); font-size: 12px; margin-left: 9px; letter-spacing: .02em; }
+    .top-meta { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 12px; }
+    .top-meta code, code { color: var(--blue); font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--green); box-shadow: 0 0 0 4px rgba(97, 212, 154, .12); }
+    .layout { display: grid; grid-template-columns: 312px minmax(0, 1fr); min-height: calc(100vh - 68px); }
+    .sidebar { padding: 24px 20px; border-right: 1px solid var(--line); background: rgba(14, 27, 45, .62); }
+    .main { min-width: 0; padding: 30px clamp(20px, 4vw, 56px) 64px; }
+    .eyebrow { color: var(--cyan); text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 750; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { margin-top: 7px; font-size: clamp(24px, 3vw, 34px); line-height: 1.1; letter-spacing: -.04em; }
+    h2 { font-size: 16px; letter-spacing: -.01em; }
+    h3 { font-size: 12px; }
+    .subtitle { color: var(--muted); margin-top: 10px; max-width: 760px; }
+    .section { margin-top: 30px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 13px; }
+    .section-head small { color: var(--faint); font-size: 11px; }
+    .card { background: linear-gradient(145deg, rgba(18, 35, 58, .88), rgba(14, 27, 45, .82)); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+    .window { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; color: var(--muted); font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .window span + span::before { content: "/"; color: var(--faint); margin-right: 14px; }
+    .badge { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); white-space: nowrap; font-size: 11px; }
+    .badge.high { color: var(--green); border-color: rgba(97, 212, 154, .35); background: rgba(97, 212, 154, .08); }
+    .badge.medium { color: var(--amber); border-color: rgba(240, 180, 91, .35); background: rgba(240, 180, 91, .08); }
+    .badge.speculative { color: var(--muted); }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+    .metric-card { padding: 15px 16px; min-height: 88px; }
+    .metric-card .label { color: var(--muted); font-size: 11px; }
+    .metric-card strong { display: block; margin-top: 5px; font-size: 23px; letter-spacing: -.04em; }
+    .metric-card strong.blue { color: var(--blue); }
+    .metric-card strong.cyan { color: var(--cyan); }
+    .metric-card strong.amber { color: var(--amber); }
+    .side-block { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
+    .side-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+    .side-title span { color: var(--muted); font-size: 11px; }
+    .incident-code { display: block; padding: 10px 11px; overflow: hidden; text-overflow: ellipsis; background: rgba(8, 17, 31, .55); border: 1px solid var(--line); border-radius: 8px; }
+    .verdict { padding: 14px; }
+    .verdict + .verdict { margin-top: 9px; opacity: .78; }
+    .verdict-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .verdict-rank { color: var(--faint); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+    .verdict-trigger { margin-top: 12px; font-weight: 700; line-height: 1.35; }
+    .verdict-copy { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 11px; }
+    .chip { color: var(--violet); background: rgba(179, 154, 255, .1); border: 1px solid rgba(179, 154, 255, .2); border-radius: 5px; padding: 2px 6px; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .chain { margin: 12px 0 0; padding: 0; list-style: none; }
+    .chain li { position: relative; padding-left: 17px; color: var(--muted); font-size: 11px; margin-top: 7px; }
+    .chain li::before { content: ""; position: absolute; left: 3px; top: 6px; width: 5px; height: 5px; border: 1px solid var(--cyan); border-radius: 50%; }
+    .chain li:not(:last-child)::after { content: ""; position: absolute; left: 5px; top: 13px; height: 10px; border-left: 1px solid var(--line); }
+    .empty { padding: 16px; color: var(--muted); font-size: 12px; }
+    .source { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 0; }
+    .source-name { font-weight: 600; font-size: 12px; }
+    .source-detail { display: block; color: var(--faint); font-size: 10px; margin-top: 2px; }
+    .source-count { color: var(--muted); font-size: 10px; text-align: right; }
+    .source.ok .dot { background: var(--green); }
+    .source.partial .dot { background: var(--amber); }
+    .source.failed .dot { background: var(--red); }
+    .source.skipped .dot { background: var(--faint); }
+    .scrubber { padding: 17px 18px 15px; }
+    .scrub-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .scrub-time { color: var(--cyan); font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    input[type="range"] { width: 100%; accent-color: var(--cyan); margin: 17px 0 5px; cursor: pointer; }
+    .scrub-scale { display: flex; justify-content: space-between; color: var(--faint); font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .anomaly-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+    .anomaly { padding: 13px 14px; }
+    .anomaly-metric { color: var(--blue); font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .anomaly-entity { color: var(--muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .anomaly-data { display: flex; gap: 13px; margin-top: 11px; color: var(--muted); font-size: 11px; }
+    .anomaly-data b { color: var(--ink); }
+    .timeline-wrap { position: relative; }
+    .timeline { display: grid; gap: 8px; }
+    .timeline-card { width: 100%; display: grid; grid-template-columns: 76px 24px minmax(0, 1fr); gap: 13px; align-items: start; padding: 13px 14px; text-align: left; background: rgba(14, 27, 45, .66); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: border-color .16s, transform .16s, background .16s; }
+    .timeline-card:hover, .timeline-card:focus-visible { border-color: var(--blue); background: var(--panel-strong); transform: translateY(-1px); outline: none; }
+    .timeline-card.past { border-left: 3px solid var(--cyan); }
+    .timeline-card.selected { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(75, 214, 207, .12); }
+    .timeline-time { color: var(--muted); font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; padding-top: 2px; }
+    .marker { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: var(--blue); background: rgba(104, 169, 255, .12); font-weight: 800; }
+    .marker.critical { color: var(--red); background: rgba(244, 126, 131, .12); }
+    .marker.notable { color: var(--amber); background: rgba(240, 180, 91, .12); }
+    .timeline-title { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .timeline-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); margin-top: 4px; font-size: 11px; }
+    .timeline-meta code { color: var(--faint); }
+    .detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 12px; align-items: start; }
+    .evidence { padding: 17px; position: sticky; top: 92px; }
+    .evidence-label { color: var(--cyan); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; font-weight: 750; }
+    .evidence h3 { margin-top: 9px; font-size: 15px; }
+    .evidence dl { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 8px 12px; margin: 18px 0 0; font-size: 11px; }
+    .evidence dt { color: var(--faint); }
+    .evidence dd { margin: 0; overflow-wrap: anywhere; color: var(--muted); }
+    .evidence pre { max-height: 180px; overflow: auto; margin: 16px 0 0; padding: 11px; color: var(--muted); background: rgba(8, 17, 31, .7); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .lanes { display: grid; gap: 8px; }
+    .lane { display: grid; grid-template-columns: minmax(150px, .4fr) minmax(0, 1fr); gap: 14px; padding: 12px 14px; align-items: center; }
+    .lane-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .lane-kind { display: block; color: var(--faint); font: 10px system-ui, sans-serif; margin-top: 3px; }
+    .spark { width: 100%; height: 42px; overflow: visible; }
+    .footer-note { color: var(--faint); font-size: 11px; margin-top: 28px; }
+    .loading { min-height: 70vh; display: grid; place-items: center; color: var(--muted); }
+    .error { max-width: 520px; margin: 80px auto; padding: 20px; border: 1px solid rgba(244, 126, 131, .35); color: var(--red); border-radius: var(--radius); background: rgba(244, 126, 131, .07); }
+    @media (max-width: 1050px) { .layout { grid-template-columns: 260px minmax(0, 1fr); } .summary-grid { grid-template-columns: repeat(2, 1fr); } .detail { grid-template-columns: 1fr; } .evidence { position: static; } }
+    @media (max-width: 720px) { .topbar { padding: 0 17px; } .brand-sub, .top-meta code { display: none; } .layout { display: block; } .sidebar { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px 17px; } .main { padding: 25px 17px 50px; } .hero { display: block; } .hero > .badge { margin-top: 18px; } .summary-grid { gap: 8px; } .metric-card { padding: 12px; min-height: 76px; } .metric-card strong { font-size: 19px; } .timeline-card { grid-template-columns: 57px 24px minmax(0, 1fr); gap: 9px; padding: 11px; } .lane { grid-template-columns: 1fr; gap: 7px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
 </head>
 <body>
-<div id="app">
-  <nav id="sidebar">
-    <div class="sidebar-header">
-      <div class="logo">⏪ rewind<span> ui</span></div>
-      <div class="incident-id" id="sb-id">loading…</div>
-    </div>
-
-    <div class="sidebar-section">
-      <h3>Verdict</h3>
-      <div id="sb-verdict"><div class="no-verdict">Loading…</div></div>
-    </div>
-
-    <div class="sidebar-section">
-      <h3>Sources</h3>
-      <div id="sb-sources"></div>
-    </div>
-  </nav>
-
-  <main id="main">
-    <div class="status-screen" id="loading-screen">
-      <div class="icon">⏳</div>
-      <p>Loading incident data…</p>
-    </div>
-    <div id="content" style="display:none">
-      <h1 class="page-title" id="main-title">Incident</h1>
-      <div class="window-line" id="main-window"></div>
-
-      <div id="anomalies-section" style="display:none">
-        <div class="section-title">Signal anomalies</div>
-        <div class="anomaly-grid" id="anomaly-grid"></div>
+  <div class="shell" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M8 8.5h12.5a6 6 0 1 1 0 12H13m0 0 4-4m-4 4 4 4M24 23.5H11.5a6 6 0 1 1 0-12H19m0 0-4-4m4 4-4 4"/></svg>
+        <div><span class="brand-name">REWIND</span><span class="brand-sub">incident workspace</span></div>
       </div>
-
-      <div class="section-title">Event timeline</div>
-      <ul class="timeline" id="timeline"></ul>
+      <div class="top-meta"><span><span class="dot"></span> offline analysis</span><code id="top-id">loading</code></div>
+    </header>
+    <div class="layout" id="workspace" hidden>
+      <aside class="sidebar" aria-label="Incident summary">
+        <div class="side-block"><div class="side-title"><h3>Incident</h3><span id="source-count"></span></div><code class="incident-code" id="incident-id"></code></div>
+        <div class="side-block"><div class="side-title"><h3>Verdict</h3><span id="hypothesis-count"></span></div><div id="verdicts"></div></div>
+        <div class="side-block"><div class="side-title"><h3>Source health</h3><span id="health-summary"></span></div><div id="sources"></div></div>
+        <p class="footer-note">Evidence is ranked by deterministic rules. Alerts corroborate impact; they never create a trigger.</p>
+      </aside>
+      <main class="main">
+        <section class="hero">
+          <div><div class="eyebrow">Investigation / replay view</div><h1 id="title">Incident</h1><p class="subtitle">A time-aligned view of events, signals, source health, and the evidence behind the current causal ranking.</p><div class="window" id="window"></div></div>
+          <div class="badge" id="overall-badge"><span class="dot"></span><span>loaded</span></div>
+        </section>
+        <section class="summary-grid" id="summary"></section>
+        <section class="section card scrubber" aria-label="Timeline scrubber"><div class="scrub-top"><div><h2>Replay position</h2><small>Move through the incident window to focus the evidence.</small></div><span class="scrub-time" id="cursor-label"></span></div><input id="cursor" type="range" min="0" max="1000" value="1000" aria-label="Incident replay position"/><div class="scrub-scale"><span id="from-label"></span><span id="to-label"></span></div></section>
+        <section class="section" id="anomalies-section"><div class="section-head"><h2>Signal anomalies</h2><small id="anomaly-count"></small></div><div class="anomaly-grid" id="anomalies"></div></section>
+        <section class="section"><div class="section-head"><h2>Evidence timeline</h2><small>select an item for details</small></div><div class="detail"><div class="timeline-wrap"><div class="timeline" id="timeline"></div></div><article class="card evidence" id="evidence" aria-live="polite"></article></div></section>
+        <section class="section"><div class="section-head"><h2>Entity lanes</h2><small>signals grouped by canonical identity</small></div><div class="lanes" id="lanes"></div></section>
+      </main>
     </div>
-    <div class="status-screen" id="error-screen" style="display:none">
-      <div class="icon">⚠️</div>
-      <p id="error-msg">Failed to load incident data.</p>
-    </div>
-  </main>
-</div>
-
-<script>
-(function () {
-  // ── Utilities ──────────────────────────────────────────────────────────────
-  function fmtTime(iso) {
-    try {
-      const d = new Date(iso);
-      return d.toISOString().slice(11, 19) + ' UTC';
-    } catch { return iso; }
-  }
-
-  function severityClass(sev) {
-    const s = (sev || '').toLowerCase();
-    if (s === 'critical') return 'sev-critical';
-    if (s === 'notable')  return 'sev-notable';
-    return 'sev-info';
-  }
-
-  function kindIcon(kind) {
-    const icons = {
-      deploy: '🚀', configchange: '⚙️', oomkill: '💥', restart: '🔄',
-      podkilled: '🗑️', nodepressure: '📦', alertfired: '🔔',
-      alertresolved: '✅', logburst: '📋', traceerrorspike: '📡',
-      crashloop: '🔁',
-    };
-    return icons[(kind || '').toLowerCase()] || '○';
-  }
-
-  function confidenceClass(conf) {
-    const c = (conf || '').toLowerCase();
-    if (c === 'high')        return 'conf-high';
-    if (c === 'medium')      return 'conf-medium';
-    if (c === 'low')         return 'conf-low';
-    if (c === 'speculative') return 'conf-speculative';
-    return 'conf-none';
-  }
-
-  function esc(s) {
-    return String(s || '')
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-  function renderSidebar(inc) {
-    // ID
-    document.getElementById('sb-id').textContent = inc.id || '';
-
-    // Sources
-    const srcEl = document.getElementById('sb-sources');
-    const sources = inc.sources || [];
-    if (sources.length === 0) {
-      srcEl.innerHTML = '<div style="font-size:12px;color:var(--muted)">No sources</div>';
-    } else {
-      srcEl.innerHTML = sources.map(s => {
-        const cls = s.status === 'ok' ? 'src-ok' : s.status === 'timeout' ? 'src-timeout' : 'src-err';
-        return `<div class="source-row">
-          <span class="src-dot ${cls}"></span>
-          <span class="src-name">${esc(s.name)}</span>
-          <span class="src-counts">${s.eventCount || 0}ev / ${s.signalCount || 0}sig</span>
-        </div>`;
-      }).join('');
+    <div class="loading" id="loading">Loading incident data...</div>
+    <div class="error" id="error" hidden role="alert"></div>
+  </div>
+  <script>
+  (() => {
+    "use strict";
+    const state = { incident: null, items: [], selected: null, from: 0, to: 1, cursor: 1 };
+    const $ = id => document.getElementById(id);
+    const text = (node, value) => { node.textContent = value == null ? "" : String(value); return node; };
+    const make = (tag, className, value) => { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = value; return node; };
+    const append = (parent, tag, className, value) => parent.appendChild(make(tag, className, value));
+    const clear = node => { while (node.firstChild) node.removeChild(node.firstChild); };
+    const safeDate = value => { const d = new Date(value); return Number.isNaN(d.getTime()) ? null : d; };
+    const fmt = value => { const d = safeDate(value); return d ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZoneName: "short" }).format(d) : "unknown time"; };
+    const fmtShort = value => { const d = safeDate(value); return d ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(d) : "--:--:--"; };
+    const list = value => Array.isArray(value) ? value : [];
+    const confClass = value => { const v = String(value || "").toLowerCase(); return v === "high" || v === "medium" || v === "speculative" ? v : ""; };
+    const statusClass = value => ["ok", "partial", "failed", "skipped"].includes(value) ? value : "skipped";
+    const severityClass = value => String(value || "").toLowerCase() === "critical" ? "critical" : String(value || "").toLowerCase() === "notable" ? "notable" : "";
+    const kindGlyph = kind => ({ Deploy: ">", ConfigChange: "=", OOMKill: "!", Restart: "R", PodKilled: "x", NodePressure: "N", AlertFired: "A", AlertResolved: "✓", LogBurst: "L", TraceErrorSpike: "T", CrashLoop: "!" }[kind] || "·");
+    const eventIndex = incident => Object.fromEntries(list(incident.events).map(event => [event.id, event]));
+    const entityIndex = incident => Object.fromEntries(list(incident.entities).map(entity => [entity.id, entity]));
+    const sourceStatusLabel = status => status === "ok" ? "available" : status === "partial" ? "partial data" : status === "failed" ? "unavailable" : "skipped";
+    function renderSources(incident) {
+      const sources = list(incident.sources); const target = $("sources"); clear(target);
+      let healthy = 0; sources.forEach(source => { if (source.status === "ok") healthy++; const row = append(target, "div", `source ${statusClass(source.status)}`); append(row, "span", "dot"); const copy = append(row, "div", ""); append(copy, "div", "source-name", source.name || "unnamed"); append(copy, "span", "source-detail", `${sourceStatusLabel(source.status)}${source.error ? ` / ${source.error}` : ""}`); append(row, "span", "source-count", `${source.eventCount || 0}e · ${source.signalCount || 0}s`); });
+      if (!sources.length) append(target, "div", "empty", "No configured sources contributed data."); text($("health-summary"), sources.length ? `${healthy}/${sources.length} ready` : "none"); text($("source-count"), `${sources.length} source${sources.length === 1 ? "" : "s"}`);
     }
-
-    // Verdict
-    const vEl = document.getElementById('sb-verdict');
-    const verdict = inc.verdict;
-    if (!verdict || (verdict.noTriggerFound && (!verdict.hypotheses || verdict.hypotheses.length === 0))) {
-      vEl.innerHTML = `<div class="verdict-card"><div class="no-verdict">No clear trigger identified.</div></div>`;
-      return;
+    function renderVerdict(incident) {
+      const target = $("verdicts"); clear(target); const verdict = incident.verdict || {}; const hypotheses = list(verdict.hypotheses); text($("hypothesis-count"), `${hypotheses.length} ranked`);
+      if (!hypotheses.length) { const empty = append(target, "div", "card empty", verdict.noTriggerFound ? "No clear trigger identified. Start with the notable anomalies in the timeline." : "No hypotheses were generated for this window."); return; }
+      const events = eventIndex(incident); hypotheses.slice(0, 3).forEach((hypothesis, index) => { const card = append(target, "article", "card verdict"); const top = append(card, "div", "verdict-top"); append(top, "span", `badge ${confClass(hypothesis.confidence)}`, String(hypothesis.confidence || "unrated")); append(top, "span", "verdict-rank", `rank ${index + 1}`); const trigger = events[hypothesis.triggerEventId]; append(card, "div", "verdict-trigger", trigger ? trigger.title : hypothesis.triggerEventId || "Unknown trigger"); if (hypothesis.explanation) append(card, "p", "verdict-copy", hypothesis.explanation); const chips = append(card, "div", "chips"); list(hypothesis.ruleIds).forEach(rule => append(chips, "span", "chip", rule)); const chain = append(card, "ul", "chain"); list(hypothesis.chain).forEach(link => append(chain, "li", "", link.description)); });
     }
-
-    const hyps = verdict.hypotheses || [];
-    const eventIndex = {};
-    (inc.events || []).forEach(ev => { eventIndex[ev.id] = ev; });
-
-    const cards = hyps.slice(0, 3).map((h, i) => {
-      const confCls = confidenceClass(h.confidence);
-      const triggerEv = eventIndex[h.triggerEventId];
-      const triggerTitle = triggerEv ? triggerEv.title : (h.triggerEventId || 'Unknown trigger');
-      const rules = (h.ruleIds || []).map(r => `<span class="rule-chip">${esc(r)}</span>`).join('');
-      const chain = (h.chain || []).map(c => `<li>${esc(c.description)}</li>`).join('');
-      const chainHtml = chain ? `<ul class="chain-list">${chain}</ul>` : '';
-
-      return `<div class="verdict-card" style="${i > 0 ? 'margin-top:8px;opacity:0.7' : ''}">
-        <div class="verdict-header">
-          <span class="confidence-badge ${confCls}">${esc(h.confidence)}</span>
-          <span style="font-size:11px;color:var(--muted)">Hypothesis ${i + 1}</span>
-        </div>
-        <div class="verdict-body">
-          <div class="trigger-label">Trigger</div>
-          <div class="trigger-title">${esc(triggerTitle)}</div>
-          ${h.explanation ? `<div class="verdict-explanation">${esc(h.explanation)}</div>` : ''}
-          ${rules ? `<div class="rules-row">${rules}</div>` : ''}
-          ${chainHtml}
-        </div>
-      </div>`;
-    }).join('');
-
-    vEl.innerHTML = cards || `<div class="no-verdict">No hypotheses generated.</div>`;
-  }
-
-  function renderMain(inc) {
-    document.getElementById('main-title').textContent = inc.id || 'Incident';
-
-    const w = inc.window || {};
-    const from = w.from ? fmtTime(w.from) : '?';
-    const to   = w.to   ? fmtTime(w.to)   : '?';
-    const ns   = (inc.scope && inc.scope.namespaces && inc.scope.namespaces.length)
-                   ? inc.scope.namespaces.join(', ') : '';
-    document.getElementById('main-window').textContent =
-      `${from}  →  ${to}` + (ns ? `   ·   namespace: ${ns}` : '');
-
-    // Anomalies from signals
-    const anomalies = [];
-    (inc.signals || []).forEach(sig => {
-      (sig.changePoints || []).forEach(cp => {
-        if (cp.score >= 0.4) {
-          anomalies.push({ sig, cp });
-        }
-      });
-    });
-    anomalies.sort((a, b) => b.cp.score - a.cp.score);
-
-    const aSec = document.getElementById('anomalies-section');
-    const aGrid = document.getElementById('anomaly-grid');
-    if (anomalies.length > 0) {
-      aSec.style.display = '';
-      aGrid.innerHTML = anomalies.slice(0, 12).map(({ sig, cp }) => {
-        const dir = cp.direction === 'up' ? '↑' : cp.direction === 'down' ? '↓' : '~';
-        const mag = cp.magnitude ? `${cp.magnitude.toFixed(1)}×` : '';
-        const conf = Math.round((cp.score || 0) * 100);
-        const entityShort = (sig.entityId || '').split('/').pop();
-        return `<div class="anomaly-card">
-          <div class="anomaly-metric">${esc(sig.metric)}</div>
-          <div class="anomaly-entity">${esc(sig.entityId)}</div>
-          <div class="anomaly-stats">
-            <div class="anomaly-stat"><strong>${dir}${mag}</strong> magnitude</div>
-            <div class="anomaly-stat"><strong>${conf}%</strong> confidence</div>
-            <div class="anomaly-stat"><strong>${esc(sig.unit || '')}</strong></div>
-          </div>
-        </div>`;
-      }).join('');
-    } else {
-      aSec.style.display = 'none';
+    function renderSummary(incident) {
+      const target = $("summary"); clear(target); const verdict = incident.verdict || {}; const sourceCount = list(incident.sources).length; const critical = list(incident.events).filter(event => event.severity === "Critical").length; const anomalyCount = list(incident.signals).reduce((sum, signal) => sum + list(signal.changePoints).length, 0); [["Entities", list(incident.entities).length, "blue"], ["Events", list(incident.events).length, "cyan"], ["Anomalies", anomalyCount, "amber"], ["Sources", sourceCount, "blue"]].forEach(([label, value, color]) => { const card = append(target, "div", "card metric-card"); append(card, "span", "label", label); append(card, "strong", color, value); }); const badge = $("overall-badge"); badge.className = "badge " + confClass(list(verdict.hypotheses)[0] && list(verdict.hypotheses)[0].confidence); clear(badge); append(badge, "span", "dot"); append(badge, "span", "", critical ? `${critical} critical signal${critical === 1 ? "" : "s"}` : "evidence loaded");
     }
-
-    // Timeline: merge events + anomalies, sort by time
-    const timelineItems = [];
-
-    (inc.events || []).forEach(ev => {
-      timelineItems.push({ t: new Date(ev.at), type: 'event', data: ev });
-    });
-    (inc.signals || []).forEach(sig => {
-      (sig.changePoints || []).forEach(cp => {
-        if (cp.score >= 0.3) {
-          timelineItems.push({ t: new Date(cp.at), type: 'anomaly', data: { sig, cp } });
-        }
-      });
-    });
-    timelineItems.sort((a, b) => a.t - b.t);
-
-    const tl = document.getElementById('timeline');
-    if (timelineItems.length === 0) {
-      tl.innerHTML = '<li style="color:var(--muted);font-size:13px;padding:12px 0">No events in this window.</li>';
-      return;
-    }
-
-    tl.innerHTML = timelineItems.map(item => {
-      if (item.type === 'event') {
-        const ev = item.data;
-        const svgCls = severityClass(ev.severity);
-        return `<li class="tl-item">
-          <span class="tl-time">${fmtTime(ev.at)}</span>
-          <span class="tl-icon">${kindIcon(ev.kind)}</span>
-          <div class="tl-body">
-            <div class="tl-title ${svgCls}">${esc(ev.title)}</div>
-            <div class="tl-entity">${esc(ev.entityId)}</div>
-            ${ev.detail ? `<div class="tl-detail">${esc(ev.detail.split('\n')[0])}</div>` : ''}
-          </div>
-        </li>`;
-      } else {
-        const { sig, cp } = item.data;
-        const dir = cp.direction === 'up' ? '↑' : cp.direction === 'down' ? '↓' : '~';
-        const mag = cp.magnitude ? `${cp.magnitude.toFixed(1)}×` : '';
-        const conf = Math.round((cp.score || 0) * 100);
-        return `<li class="tl-item">
-          <span class="tl-time">${fmtTime(cp.at)}</span>
-          <span class="tl-icon sev-notable">▲</span>
-          <div class="tl-body">
-            <div class="tl-title sev-notable">Anomaly: ${dir}${mag} ${esc(sig.metric)} (${conf}% confidence)</div>
-            <div class="tl-entity">${esc(sig.entityId)}</div>
-          </div>
-        </li>`;
-      }
-    }).join('');
-  }
-
-  // ── Fetch and bootstrap ────────────────────────────────────────────────────
-  fetch('/api/incident')
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    })
-    .then(inc => {
-      document.getElementById('loading-screen').style.display = 'none';
-      document.getElementById('content').style.display = '';
-      renderSidebar(inc);
-      renderMain(inc);
-    })
-    .catch(err => {
-      document.getElementById('loading-screen').style.display = 'none';
-      document.getElementById('error-screen').style.display = '';
-      document.getElementById('error-msg').textContent =
-        'Failed to load incident: ' + err.message;
-    });
-})();
-</script>
+    function anomalyItems(incident) { const out = []; list(incident.signals).forEach(signal => list(signal.changePoints).forEach(change => { if ((change.score || 0) >= .3) out.push({ type: "anomaly", at: change.at, signal, change }); })); return out.sort((a, b) => new Date(a.at) - new Date(b.at)); }
+    function renderAnomalies(incident) { const target = $("anomalies"); clear(target); const anomalies = anomalyItems(incident).sort((a, b) => (b.change.score || 0) - (a.change.score || 0)); text($("anomaly-count"), `${anomalies.length} detected`); if (!anomalies.length) { append(target, "div", "card empty", "No notable change-points were detected in the collected signals."); return; } anomalies.slice(0, 12).forEach(item => { const card = append(target, "article", "card anomaly"); append(card, "div", "anomaly-metric", item.signal.metric); append(card, "div", "anomaly-entity", item.signal.entityId); const data = append(card, "div", "anomaly-data"); const direction = item.change.direction === "Up" ? "↑" : item.change.direction === "Down" ? "↓" : "~"; append(data, "span", "", `${direction} `); append(data, "span", "", `${(item.change.magnitude || 0).toFixed(1)}×`); append(data, "span", "", `${Math.round((item.change.score || 0) * 100)}% confidence`); }); }
+    function buildItems(incident) { const items = []; list(incident.events).forEach(event => items.push({ type: "event", at: event.at, event })); anomalyItems(incident).forEach(item => items.push(item)); return items.sort((a, b) => new Date(a.at) - new Date(b.at)); }
+    function selectItem(item) { state.selected = item; renderEvidence(item); document.querySelectorAll(".timeline-card").forEach(node => node.classList.toggle("selected", node.dataset.key === itemKey(item))); }
+    function itemKey(item) { return item.type === "event" ? `event:${item.event.id}` : `anomaly:${item.signal.id}:${item.change.at}`; }
+    function renderTimeline(incident) { state.items = buildItems(incident); const target = $("timeline"); clear(target); if (!state.items.length) { append(target, "div", "card empty", "No events or signal anomalies exist in this window."); return; } state.items.forEach(item => { const event = item.event; const button = append(target, "button", "timeline-card"); button.type = "button"; button.dataset.key = itemKey(item); button.dataset.at = new Date(item.at).getTime(); button.addEventListener("click", () => selectItem(item)); const time = append(button, "time", "timeline-time", fmtShort(item.at)); time.dateTime = item.at; const marker = append(button, "span", `marker ${item.type === "event" ? severityClass(event.severity) : "notable"}`, item.type === "event" ? kindGlyph(event.kind) : "~"); const body = append(button, "span", ""); append(body, "strong", `timeline-title ${item.type === "event" ? severityClass(event.severity) : ""}`, item.type === "event" ? event.title : `${item.change.direction || "Change"} ${item.signal.metric}`); const meta = append(body, "span", "timeline-meta"); append(meta, "code", "", item.type === "event" ? event.entityId : item.signal.entityId); append(meta, "span", "", item.type === "event" ? event.kind : `${Math.round((item.change.score || 0) * 100)}% confidence`); }); renderEvidence(state.items[0]); }
+    function renderEvidence(item) { const target = $("evidence"); clear(target); if (!item) { append(target, "div", "empty", "Select an evidence item to inspect it."); return; } append(target, "div", "evidence-label", item.type === "event" ? "Event evidence" : "Signal evidence"); if (item.type === "event") { const event = item.event; append(target, "h3", "", event.title || event.kind); const dl = append(target, "dl", ""); [["time", fmt(event.at)], ["kind", event.kind], ["severity", event.severity], ["entity", event.entityId], ["source", event.sourceRef && event.sourceRef.sourceName]].forEach(([key, value]) => { append(dl, "dt", "", key); append(dl, "dd", "", value || "not recorded"); }); if (event.detail) append(target, "pre", "", event.detail); } else { append(target, "h3", "", item.signal.metric); const dl = append(target, "dl", ""); [["time", fmt(item.change.at)], ["entity", item.signal.entityId], ["direction", item.change.direction], ["magnitude", `${(item.change.magnitude || 0).toFixed(2)}×`], ["score", `${Math.round((item.change.score || 0) * 100)}%`], ["detector", item.change.detectorId]].forEach(([key, value]) => { append(dl, "dt", "", key); append(dl, "dd", "", value || "not recorded"); }); } }
+    function sparkline(points) { const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 240 42"); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "Signal trend"); const values = list(points).map(point => Number(point.v)).filter(Number.isFinite); if (!values.length) return svg; const min = Math.min(...values); const max = Math.max(...values); const span = max - min || 1; const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline"); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", "#4bd6cf"); polyline.setAttribute("stroke-width", "2"); polyline.setAttribute("stroke-linecap", "round"); polyline.setAttribute("stroke-linejoin", "round"); polyline.setAttribute("points", values.map((value, index) => `${(index / Math.max(values.length - 1, 1)) * 238 + 1},${40 - ((value - min) / span) * 36}`).join(" ")); svg.appendChild(polyline); return svg; }
+    function renderLanes(incident) { const target = $("lanes"); clear(target); const entities = entityIndex(incident); const byEntity = new Map(); list(incident.signals).forEach(signal => { if (!byEntity.has(signal.entityId)) byEntity.set(signal.entityId, []); byEntity.get(signal.entityId).push(signal); }); if (!byEntity.size) { append(target, "div", "card empty", "No signal series were returned by the configured sources."); return; } [...byEntity.keys()].sort().forEach(id => { const lane = append(target, "div", "card lane"); const name = append(lane, "div", "lane-name", id); const entity = entities[id]; append(name, "span", "lane-kind", entity ? entity.kind : "entity"); const chart = append(lane, "div", ""); const signals = byEntity.get(id); signals.slice(0, 3).forEach((signal, index) => { const row = append(chart, "div", ""); const label = append(row, "span", "timeline-meta", `${signal.metric}${signal.unit ? ` / ${signal.unit}` : ""}`); label.style.margin = index ? "6px 0 0" : "0"; row.appendChild(sparkline(signal.points)); }); }); }
+    function updateCursor(value) { state.cursor = Number(value); const timestamp = state.from + (state.to - state.from) * (state.cursor / 1000); text($("cursor-label"), fmt(timestamp)); document.querySelectorAll(".timeline-card").forEach(node => node.classList.toggle("past", Number(node.dataset.at) <= timestamp)); }
+    function render(incident) { state.incident = incident; const from = safeDate(incident.window && incident.window.from); const to = safeDate(incident.window && incident.window.to); state.from = from ? from.getTime() : Date.now(); state.to = to ? to.getTime() : state.from + 1; text($("top-id"), incident.id || "unknown incident"); text($("incident-id"), incident.id || "unknown incident"); text($("title"), incident.id || "Incident"); const namespace = list(incident.scope && incident.scope.namespaces); clear($("window")); append($("window"), "span", "", `${fmt(incident.window && incident.window.from)} → ${fmt(incident.window && incident.window.to)}`); if (namespace.length) append($("window"), "span", "", `namespace: ${namespace.join(", ")}`); text($("from-label"), fmtShort(state.from)); text($("to-label"), fmtShort(state.to)); renderSources(incident); renderVerdict(incident); renderSummary(incident); renderAnomalies(incident); renderTimeline(incident); renderLanes(incident); updateCursor($("cursor").value); }
+    $("cursor").addEventListener("input", event => updateCursor(event.target.value));
+    fetch("/api/incident", { headers: { Accept: "application/json" } }).then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); }).then(incident => { $("loading").hidden = true; $("workspace").hidden = false; render(incident); }).catch(error => { $("loading").hidden = true; const target = $("error"); target.hidden = false; text(target, `Unable to load incident data: ${error.message}`); });
+  })();
+  </script>
 </body>
 </html>

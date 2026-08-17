@@ -41,7 +41,7 @@ func runSourcesCheck(ctx context.Context, timeout time.Duration) error {
 	collectors := reg.All()
 
 	bold := color.New(color.Bold)
-	bold.Fprintln(os.Stdout, "Configured sources:")
+	bold.Fprintln(os.Stdout, "Configured sources:") //nolint:gosec // terminal output failure is not recoverable.
 	fmt.Fprintln(os.Stdout)
 
 	if len(collectors) == 0 {
@@ -113,13 +113,13 @@ func printDisabledSources(cfg *Config) {
 		return
 	}
 
-	color.New(color.Faint).Fprintln(os.Stdout, "Not configured / disabled:")
+	color.New(color.Faint).Fprintln(os.Stdout, "Not configured / disabled:") //nolint:gosec // terminal output failure is not recoverable.
 	for _, it := range skipped {
 		reason := "disabled"
 		if !it.disabled && it.reason == "" {
 			reason = "no credentials/endpoint in config"
 		}
-		color.New(color.Faint).Fprintf(os.Stdout, "  %-20s %s\n", it.name, reason)
+		color.New(color.Faint).Fprintf(os.Stdout, "  %-20s %s\n", it.name, reason) //nolint:gosec // terminal output failure is not recoverable.
 	}
 	fmt.Fprintln(os.Stdout)
 }

@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,7 +66,7 @@ func (c *Collector) Check(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("alertmanager connectivity check: %w", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("alertmanager returned HTTP %d", resp.StatusCode)
 	}
@@ -254,15 +255,21 @@ func (c *Collector) formatAlertDetail(a amAlert) string {
 	if v := a.Annotations["description"]; v != "" {
 		sb.WriteString("Description: " + v + "\n")
 	}
-	sb.WriteString(fmt.Sprintf("State: %s\n", a.Status.State))
+	_, _ = fmt.Fprintf(&sb, "State: %s\n", a.Status.State)
 	if !a.StartsAt.IsZero() {
-		sb.WriteString(fmt.Sprintf("Started: %s\n", a.StartsAt.UTC().Format(time.RFC3339)))
+		_, _ = fmt.Fprintf(&sb, "Started: %s\n", a.StartsAt.UTC().Format(time.RFC3339))
 	}
-	for k, v := range a.Labels {
+	keys := make([]string, 0, len(a.Labels))
+	for k := range a.Labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := a.Labels[k]
 		if k == "alertname" {
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("  %s=%s\n", k, v))
+		_, _ = fmt.Fprintf(&sb, "  %s=%s\n", k, v)
 	}
 	return sb.String()
 }
@@ -277,13 +284,13 @@ func alertEntityID(a amAlert) string {
 		return "pod/" + ns + "/" + pod
 	}
 	if dep := a.Labels["deployment"]; dep != "" && ns != "" {
-		return "deploy/" + ns + "/" + dep
+		return model.NewEntityID(model.EntityKindDeployment, ns, dep)
 	}
 	if app := a.Labels["app"]; app != "" && ns != "" {
-		return "svc/" + ns + "/" + app
+		return model.NewEntityID(model.EntityKindService, ns, app)
 	}
 	if svc := a.Labels["service"]; svc != "" && ns != "" {
-		return "svc/" + ns + "/" + svc
+		return model.NewEntityID(model.EntityKindService, ns, svc)
 	}
 	if ns != "" {
 		return "ns/" + ns

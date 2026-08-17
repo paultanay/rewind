@@ -79,7 +79,7 @@ func (c *Collector) Check(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("tempo connectivity check: %w", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("tempo returned HTTP %d", resp.StatusCode)
 	}
@@ -226,7 +226,7 @@ type traceRecord struct {
 	StartTimeUnixNano string `json:"startTimeUnixNano"`
 	// SpanSets contains span-level data; we only need service names.
 	SpanSets     []spanSet `json:"spanSets"`
-	SpanServices []string  // synthesised from SpanSets
+	SpanServices []string  // synthesized from SpanSets
 }
 
 type spanSet struct {
@@ -325,9 +325,9 @@ func (c *Collector) grafanaTraceURL(svc string, window model.TimeRange) string {
 
 func entityIDForSvc(scope model.Scope, svc string) string {
 	if len(scope.Namespaces) > 0 {
-		return "svc/" + scope.Namespaces[0] + "/" + svc
+		return model.NewEntityID(model.EntityKindService, scope.Namespaces[0], svc)
 	}
-	return "svc/default/" + svc
+	return model.NewEntityID(model.EntityKindService, "default", svc)
 }
 
 func percentile(vals []float64, p int) float64 {

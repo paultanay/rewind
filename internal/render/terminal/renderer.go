@@ -1,7 +1,7 @@
 // Package terminal renders an Incident as a chronological timeline on the
 // terminal. This is Rewind's flagship output — the screenshot that markets
 // the project. Quality bar: it must look outstanding in a 80-column terminal,
-// survive both colour-capable and plain-text (NO_COLOR / pipe) environments,
+// survive both color-capable and plain-text (NO_COLOR / pipe) environments,
 // and produce exactly the same bytes given the same input (snapshot-testable).
 package terminal
 
@@ -19,8 +19,8 @@ import (
 	"github.com/paultanay/rewind/internal/model"
 )
 
-// ─── Colour palette ───────────────────────────────────────────────────────────
-// We define colours once here. Tests call color.NoColor = true; the palette
+// ─── Color palette ───────────────────────────────────────────────────────────
+// We define colors once here. Tests call color.NoColor = true; the palette
 // then emits plain text automatically — no special test path needed.
 
 var (
@@ -62,11 +62,11 @@ var eventKindLabel = map[model.EventKind]string{
 	model.EventKindUnknown:         "EVENT",
 }
 
-// Options controls optional rendering behaviour.
+// Options controls optional rendering behavior.
 type Options struct {
 	// Width is the terminal column width. Defaults to 120.
 	Width int
-	// NoColor disables ANSI colour output regardless of environment.
+	// NoColor disables ANSI color output regardless of environment.
 	NoColor bool
 	// TimeFormat overrides the default HH:MM:SS timestamp format.
 	TimeFormat string
@@ -432,7 +432,7 @@ func buildSparkline(points []model.Point, around time.Time) string {
 		}
 	}
 
-	// Grab width points centred on the pivot.
+	// Grab width points centered on the pivot.
 	start := pivot - width/2
 	if start < 0 {
 		start = 0

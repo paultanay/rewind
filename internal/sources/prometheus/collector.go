@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -68,6 +69,13 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 	if len(services) == 0 {
 		services = []string{""}
 	}
+	namespaces := scope.Namespaces
+	if len(namespaces) == 0 {
+		// An empty namespace scope means all namespaces. Keep one explicit
+		// wildcard target so the collector still queries rather than silently
+		// returning no signals.
+		namespaces = []string{""}
+	}
 
 	// Baseline windows:
 	//   B1: same duration immediately before the incident window.
@@ -81,7 +89,11 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 		To:   window.From.Add(-24 * time.Hour),
 	}
 
-	queries := append(append(defaultQueries, nodeQueries...), c.ExtraQueries...)
+	queries := make([]QueryTemplate, 0, len(defaultQueries)+len(nodeQueries)+len(c.ExtraQueries))
+	queries = append(queries, defaultQueries...)
+	queries = append(queries, nodeQueries...)
+	queries = append(queries, c.ExtraQueries...)
+	queries = filterQueries(queries, model.EntityKindService)
 
 	var (
 		mu       sync.Mutex
@@ -94,8 +106,7 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 	// Fan out: one goroutine per (service × query).
 	// Bounded: services × queries is typically small (5 services × 8 queries = 40).
 	for _, svc := range services {
-		for nsIdx := range scope.Namespaces {
-			ns := scope.Namespaces[nsIdx]
+		for _, ns := range namespaces {
 			for _, qt := range queries {
 				wg.Add(1)
 				go func(ns, svc string, qt QueryTemplate) {
@@ -129,7 +140,7 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 							Kind:        model.EntityKindService,
 							DisplayName: svc,
 							Labels: map[string]string{
-								"namespace": ns,
+								"namespace": displayNamespace(ns),
 								"service":   svc,
 							},
 						})
@@ -140,8 +151,19 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 		}
 	}
 	wg.Wait()
+	sort.Slice(signals, func(i, j int) bool {
+		if signals[i].EntityID != signals[j].EntityID {
+			return signals[i].EntityID < signals[j].EntityID
+		}
+		if signals[i].Metric != signals[j].Metric {
+			return signals[i].Metric < signals[j].Metric
+		}
+		return signals[i].ID < signals[j].ID
+	})
+	sort.Slice(entities, func(i, j int) bool { return entities[i].ID < entities[j].ID })
+	sort.Strings(errs)
 
-	// Serialise raw fixture for bundle replay.
+	// Serialize raw fixture for bundle replay.
 	raw, _ := json.Marshal(map[string]any{
 		"url":     c.URL,
 		"step":    step.String(),
@@ -197,7 +219,7 @@ func (c *Collector) collectSignal(
 
 	entityID := entityIDForService(ns, svc)
 	sig := &model.Signal{
-		ID:       model.NewSignalID(),
+		ID:       model.NewStableSignalID(sourceName, entityID, qt.Metric),
 		EntityID: entityID,
 		Metric:   qt.Metric,
 		Unit:     qt.Unit,
@@ -210,21 +232,63 @@ func (c *Collector) collectSignal(
 // substituteLabels replaces {namespace} and {service} placeholders in a
 // PromQL template with the actual values.
 func substituteLabels(promQL, ns, svc string) string {
-	q := strings.ReplaceAll(promQL, "{namespace}", ns)
+	q := promQL
+	if ns == "" {
+		q = replaceMatcher(promQL, "namespace", `namespace=~".+"`)
+	} else {
+		q = strings.ReplaceAll(promQL, "{namespace}", escapeLabelValue(ns))
+	}
 	if svc == "" {
 		// Wildcard: match all services in the namespace.
-		q = strings.ReplaceAll(q, `service="{service}"`, `namespace=~".+"`)
-		q = strings.ReplaceAll(q, `container="{service}"`, `namespace=~".+"`)
-		q = strings.ReplaceAll(q, `node="{service}"`, `node=~".+"`)
+		q = replaceMatcher(q, "service", `service=~".+"`)
+		q = replaceMatcher(q, "container", `container=~".+"`)
+		q = replaceMatcher(q, "node", `node=~".+"`)
 	} else {
-		q = strings.ReplaceAll(q, "{service}", svc)
+		q = strings.ReplaceAll(q, "{service}", escapeLabelValue(svc))
 	}
 	return q
 }
 
 func entityIDForService(ns, svc string) string {
+	ns = displayNamespace(ns)
 	if svc == "" {
-		return model.NewEntityID(model.EntityKindService, ns, ns)
+		svc = "*"
 	}
 	return model.NewEntityID(model.EntityKindService, ns, svc)
+}
+
+func displayNamespace(ns string) string {
+	if ns == "" {
+		return "*"
+	}
+	return ns
+}
+
+func filterQueries(queries []QueryTemplate, kind model.EntityKind) []QueryTemplate {
+	filtered := make([]QueryTemplate, 0, len(queries))
+	for _, query := range queries {
+		if len(query.EntityKinds) == 0 || containsKind(query.EntityKinds, kind) {
+			filtered = append(filtered, query)
+		}
+	}
+	return filtered
+}
+
+func containsKind(kinds []model.EntityKind, want model.EntityKind) bool {
+	for _, kind := range kinds {
+		if kind == want {
+			return true
+		}
+	}
+	return false
+}
+
+func replaceMatcher(promQL, label, replacement string) string {
+	return strings.ReplaceAll(promQL, label+`="{`+label+`}"`, replacement)
+}
+
+func escapeLabelValue(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `"`, `\"`)
+	return value
 }

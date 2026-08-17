@@ -1,6 +1,7 @@
 package correlate_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -8,6 +9,37 @@ import (
 	"github.com/paultanay/rewind/internal/analyze/topology"
 	"github.com/paultanay/rewind/internal/model"
 )
+
+func TestRunDeterministicJSON(t *testing.T) {
+	t.Parallel()
+	entities := []model.Entity{
+		{ID: "service/shop/checkout", Kind: model.EntityKindService},
+		{ID: "service/shop/payments", Kind: model.EntityKindService},
+	}
+	events := []model.Event{
+		makeEvent("deploy-checkout", model.EventKindDeploy, "service/shop/checkout", t0, model.SeverityInfo),
+		makeEvent("deploy-payments", model.EventKindDeploy, "service/shop/payments", t0.Add(time.Minute), model.SeverityInfo),
+	}
+	signals := []model.Signal{
+		makeSignalWithCP("lat-checkout", "service/shop/checkout", model.MetricLatencyP99, t0.Add(2*time.Minute), 4),
+		makeSignalWithCP("lat-payments", "service/shop/payments", model.MetricLatencyP99, t0.Add(3*time.Minute), 4),
+	}
+	inc := model.Incident{Entities: entities, Events: events, Signals: signals}
+	graph := topology.Build(entities)
+	want, err := json.Marshal(correlate.Run(inc, graph))
+	if err != nil {
+		t.Fatalf("marshal first verdict: %v", err)
+	}
+	for i := 0; i < 20; i++ {
+		got, err := json.Marshal(correlate.Run(inc, topology.Build(entities)))
+		if err != nil {
+			t.Fatalf("marshal verdict %d: %v", i, err)
+		}
+		if string(got) != string(want) {
+			t.Fatalf("verdict JSON changed on run %d:\nfirst: %s\nnext:  %s", i, want, got)
+		}
+	}
+}
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 

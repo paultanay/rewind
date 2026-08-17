@@ -31,6 +31,8 @@ func Run(inc model.Incident) model.Incident {
 // RunFull executes the full analysis pipeline and returns both the updated
 // Incident and the entity topology graph.
 func RunFull(inc model.Incident) RunResult {
+	inc = model.NormalizeIncident(inc)
+
 	// Detect statistical change-points in each signal using both the
 	// baseline-deviation (median+MAD) and PELT detectors.
 	inc.Signals = detectChangePoints(inc.Signals)

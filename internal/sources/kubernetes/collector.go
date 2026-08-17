@@ -2,7 +2,9 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -70,33 +72,44 @@ func (c *Collector) Collect(ctx context.Context, scope model.Scope, window model
 	if len(namespaces) == 0 {
 		// Discover all accessible namespaces.
 		nsList, nsErr := cs.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-		if nsErr == nil {
-			for _, ns := range nsList.Items {
-				namespaces = append(namespaces, ns.Name)
-			}
+		if nsErr != nil {
+			return sources.CollectResult{}, fmt.Errorf("kubernetes: list namespaces: %w", nsErr)
+		}
+		for _, ns := range nsList.Items {
+			namespaces = append(namespaces, ns.Name)
 		}
 	}
 
 	var (
-		allEvents   []model.Event
-		allEntities []model.Entity
+		allEvents      []model.Event
+		allEntities    []model.Entity
+		collectionErrs []error
 	)
 
 	for _, ns := range namespaces {
 		evts, ents, err := c.collectNamespace(ctx, cs, ns, scope.Services, window)
-		if err != nil {
-			// Log but continue — per-namespace errors should not abort all collection.
-			fmt.Printf("kubernetes: namespace %s: %v\n", ns, err)
-			continue
-		}
 		allEvents = append(allEvents, evts...)
 		allEntities = append(allEntities, ents...)
+		if err != nil {
+			// Log but continue — per-namespace errors should not abort all collection.
+			collectionErrs = append(collectionErrs, fmt.Errorf("namespace %s: %w", ns, err))
+			continue
+		}
 	}
+
+	sort.Slice(allEvents, func(i, j int) bool {
+		if !allEvents[i].At.Equal(allEvents[j].At) {
+			return allEvents[i].At.Before(allEvents[j].At)
+		}
+		return allEvents[i].ID < allEvents[j].ID
+	})
+	allEntities = deduplicateEntities(allEntities)
+	sort.Slice(allEntities, func(i, j int) bool { return allEntities[i].ID < allEntities[j].ID })
 
 	return sources.CollectResult{
 		Events:   allEvents,
-		Entities: deduplicateEntities(allEntities),
-	}, nil
+		Entities: allEntities,
+	}, errors.Join(collectionErrs...)
 }
 
 func (c *Collector) collectNamespace(
@@ -132,7 +145,7 @@ func (c *Collector) collectNamespace(
 	// ── ReplicaSet rollout reconstruction → Deploy events ────────────────────
 	// A Deploy event is reconstructed when a new ReplicaSet revision appears
 	// with an image change relative to its predecessor.
-	deployEvents, deployEntities := c.reconstructRollouts(ctx, cs, ns, services, window)
+	deployEvents, deployEntities, rolloutErr := c.reconstructRollouts(ctx, cs, ns, services, window)
 	events = append(events, deployEvents...)
 	entities = append(entities, deployEntities...)
 
@@ -167,24 +180,31 @@ func (c *Collector) collectNamespace(
 		}
 	}
 
-	return events, entities, nil
+	var collectionErrs []error
+	if rolloutErr != nil {
+		collectionErrs = append(collectionErrs, fmt.Errorf("reconstruct rollouts: %w", rolloutErr))
+	}
+	if podErr != nil {
+		collectionErrs = append(collectionErrs, fmt.Errorf("list pods: %w", podErr))
+	}
+	return events, entities, errors.Join(collectionErrs...)
 }
 
 // reconstructRollouts examines ReplicaSets to find deployment rollouts in the
-// window and synthesises Deploy events with image diff in the Detail field.
+// window and synthesizes Deploy events with image diff in the Detail field.
 func (c *Collector) reconstructRollouts(
 	ctx context.Context,
 	cs kubernetes.Interface,
 	ns string,
 	services []string,
 	window model.TimeRange,
-) ([]model.Event, []model.Entity) {
+) ([]model.Event, []model.Entity, error) {
 	var events []model.Event
 	var entities []model.Entity
 
 	rsList, err := cs.AppsV1().ReplicaSets(ns).List(ctx, listOptions(""))
 	if err != nil {
-		return nil, nil
+		return nil, nil, err
 	}
 
 	// Group ReplicaSets by deployment name (annotation: deployment.kubernetes.io/revision).
@@ -201,7 +221,9 @@ func (c *Collector) reconstructRollouts(
 		}
 
 		var revision int
-		fmt.Sscanf(rs.Annotations["deployment.kubernetes.io/revision"], "%d", &revision)
+		if _, err := fmt.Sscanf(rs.Annotations["deployment.kubernetes.io/revision"], "%d", &revision); err != nil {
+			revision = 0
+		}
 
 		var imgs []string
 		for _, c2 := range rs.Spec.Template.Spec.Containers {
@@ -235,6 +257,7 @@ func (c *Collector) reconstructRollouts(
 			}
 
 			entityID := model.NewEntityID(model.EntityKindDeployment, ns, deployName)
+			serviceID := model.NewEntityID(model.EntityKindService, ns, deployName)
 			events = append(events, model.Event{
 				ID:       model.NewEventID(),
 				At:       rec.createdAt,
@@ -251,12 +274,19 @@ func (c *Collector) reconstructRollouts(
 			entities = append(entities, model.Entity{
 				ID:          entityID,
 				Kind:        model.EntityKindDeployment,
+				Owner:       serviceID,
+				DisplayName: deployName,
+				Labels:      map[string]string{"namespace": ns},
+			})
+			entities = append(entities, model.Entity{
+				ID:          serviceID,
+				Kind:        model.EntityKindService,
 				DisplayName: deployName,
 				Labels:      map[string]string{"namespace": ns},
 			})
 		}
 	}
-	return events, entities
+	return events, entities, nil
 }
 
 // ─── K8s event mapping ────────────────────────────────────────────────────────
@@ -379,7 +409,7 @@ func eventTime(e corev1.Event) time.Time {
 
 func serviceInScope(name string, services []string) bool {
 	for _, svc := range services {
-		if strings.Contains(name, svc) {
+		if name == svc || strings.HasPrefix(name, svc+"-") || strings.HasPrefix(name, svc+".") {
 			return true
 		}
 	}

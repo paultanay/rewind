@@ -6,6 +6,10 @@
 
 # Go build cache
 *.out
+.gocache/
+.audit/
+*.prof
+*.trace
 coverage
 coverage.out
 coverage.html

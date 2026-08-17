@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -71,7 +72,7 @@ Examples:
 	cmd.Flags().IntVar(&flags.width, "width", 120,
 		"terminal column width for term output")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false,
-		"disable ANSI colour output")
+		"disable ANSI color output")
 
 	return cmd
 }
@@ -106,12 +107,6 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 	}
 
 	// ── Load config ──────────────────────────────────────────────────────────
-	cfg, err := LoadConfig(globals.configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(ExitInternalError)
-	}
-
 	var inc model.Incident
 
 	if flags.replay != "" {
@@ -121,7 +116,11 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 			fmt.Fprintf(os.Stderr, "error: loading bundle %q: %v\n", flags.replay, loadErr)
 			os.Exit(ExitInternalError)
 		}
-		inc = b.Incident
+		inc, err = replayIncident(b)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: replaying bundle %q: %v\n", flags.replay, err)
+			os.Exit(ExitInternalError)
+		}
 		fmt.Fprintf(os.Stderr, "replaying %s (window %s → %s)\n",
 			flags.replay,
 			inc.Window.From.Format("15:04:05"),
@@ -130,6 +129,13 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 		// Re-run analysis with the current version of the engine.
 		inc = analyze.Run(inc)
 	} else {
+		// Live mode is the only path that needs configuration or source clients.
+		cfg, loadErr := LoadConfig(globals.configPath)
+		if loadErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", loadErr)
+			os.Exit(ExitInternalError)
+		}
+
 		// ── Live collection ──────────────────────────────────────────────────
 		reg := buildRegistry(cfg)
 
@@ -144,6 +150,9 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 					r.Name, r.EventCount, r.SignalCount, r.Duration)
 			case model.SourceStatusFailed:
 				fmt.Fprintf(os.Stderr, "  ✗ %-16s %s\n", r.Name, r.Error)
+			case model.SourceStatusPartial:
+				fmt.Fprintf(os.Stderr, "  ~ %-16s partial: %devt  %dsig  %s (%s)\n",
+					r.Name, r.EventCount, r.SignalCount, r.Duration, r.Error)
 			default:
 				fmt.Fprintf(os.Stderr, "  - %-16s skipped\n", r.Name)
 			}
@@ -239,6 +248,79 @@ func runInvestigate(ctx context.Context, flags investigateFlags) error {
 	}
 
 	return nil
+}
+
+// replayIncident rebuilds the source-normalized incident from versioned
+// fixtures when present. Bundles produced before fixtures were introduced are
+// still readable and fall back to their stored incident snapshot.
+func replayIncident(b *bundle.Bundle) (model.Incident, error) {
+	inc := b.Incident
+	names := make([]string, 0, len(b.RawSources))
+	for name := range b.RawSources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	entities := make(map[string]model.Entity)
+	events := make(map[string]model.Event)
+	signals := make(map[string]model.Signal)
+	replayed := false
+	for _, name := range names {
+		fixture, recognized, err := sources.DecodeFixture(b.RawSources[name])
+		if err != nil {
+			return model.Incident{}, fmt.Errorf("source %q: %w", name, err)
+		}
+		if !recognized {
+			continue
+		}
+		replayed = true
+		for _, entity := range fixture.Entities {
+			if entity.ID != "" {
+				entities[entity.ID] = entity
+			}
+		}
+		for _, event := range fixture.Events {
+			if event.ID != "" {
+				events[event.ID] = event
+			}
+		}
+		for _, signal := range fixture.Signals {
+			if signal.ID != "" {
+				signals[signal.ID] = signal
+			}
+		}
+	}
+	if !replayed {
+		return inc, nil
+	}
+
+	inc.Entities = mapValues(entities, func(a, b model.Entity) bool { return a.ID < b.ID })
+	inc.Events = mapValues(events, func(a, b model.Event) bool {
+		if !a.At.Equal(b.At) {
+			return a.At.Before(b.At)
+		}
+		return a.ID < b.ID
+	})
+	inc.Signals = mapValues(signals, func(a, b model.Signal) bool {
+		if a.EntityID != b.EntityID {
+			return a.EntityID < b.EntityID
+		}
+		if a.Metric != b.Metric {
+			return a.Metric < b.Metric
+		}
+		return a.ID < b.ID
+	})
+	inc.Verdict = nil
+	return inc, nil
+}
+
+func mapValues[T any](values map[string]T, less func(T, T) bool) []T {
+	out := make([]T, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	sort.Slice(out, func(i, j int) bool { return less(out[i], out[j]) })
+	return out
 }
 
 // buildRegistry constructs and returns a registry populated with all

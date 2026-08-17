@@ -92,6 +92,21 @@ func TestProximity_CallEdge(t *testing.T) {
 	}
 }
 
+func TestBuildConsumesTempoCallLabels(t *testing.T) {
+	t.Parallel()
+	entities := []model.Entity{
+		{ID: "service/shop/checkout", Kind: model.EntityKindService, Labels: map[string]string{
+			"calls": "service/shop/payments,service/shop/inventory",
+		}},
+		{ID: "service/shop/payments", Kind: model.EntityKindService},
+		{ID: "service/shop/inventory", Kind: model.EntityKindService},
+	}
+	g := topology.Build(entities)
+	if got := g.ProximityScore("service/shop/checkout", "service/shop/payments"); got != 0.5 {
+		t.Fatalf("Tempo call label was not added to graph: proximity = %v, want 0.5", got)
+	}
+}
+
 func TestProximity_Unrelated(t *testing.T) {
 	t.Parallel()
 	g := buildShopGraph()
@@ -106,12 +121,12 @@ func TestRootAncestor(t *testing.T) {
 	t.Parallel()
 	g := buildShopGraph()
 	root := g.RootAncestor("pod/shop/checkout-abc")
-	if root != "svc/shop/checkout" {
-		t.Errorf("RootAncestor(pod) = %q, want svc/shop/checkout", root)
+	if root != "service/shop/checkout" {
+		t.Errorf("RootAncestor(pod) = %q, want service/shop/checkout", root)
 	}
 	// Service has no parent — root is itself.
 	root2 := g.RootAncestor("svc/shop/checkout")
-	if root2 != "svc/shop/checkout" {
+	if root2 != "service/shop/checkout" {
 		t.Errorf("RootAncestor(svc) = %q, want itself", root2)
 	}
 }

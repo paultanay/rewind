@@ -1,0 +1,16 @@
+@import "./tokens.css";
+
+* { box-sizing: border-box; }
+html { background: var(--canvas); scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--text); font: 14px/1.55 var(--font-sans); }
+button, input { font: inherit; }
+button { color: inherit; }
+a { color: var(--blue); }
+h1, h2, h3, p, dl, dd, dt { margin: 0; }
+h1, h2, h3 { line-height: 1.2; }
+h1 { font-size: clamp(24px, 3vw, 38px); letter-spacing: -.04em; }
+h2 { font-size: 18px; }
+h3 { font-size: 14px; }
+code, .mono { font-family: var(--font-mono); }
+::selection { color: var(--canvas); background: var(--brand); }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }

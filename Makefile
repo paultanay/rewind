@@ -11,14 +11,19 @@ BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 # CGO disabled — single static binary, cross-compile friendly.
 export CGO_ENABLED=0
 
-.PHONY: all build test race demo demo-all check verify build-all lint vet fmt-check tidy clean install coverage help
+.PHONY: all build build-ui test race demo demo-all check verify build-all lint vet fmt-check tidy clean install coverage help
 
 all: build
 
 ## build: compile the binary to ./bin/rewind
-build:
+build: build-ui
 	@mkdir -p bin
 	go build $(BUILD_FLAGS) -o bin/$(BINARY) ./cmd/rewind
+
+## build-ui: compile the browser workspace into the embedded UI directory
+build-ui:
+	npm --prefix web ci
+	npm --prefix web run build
 
 ## install: install to $GOPATH/bin
 install:

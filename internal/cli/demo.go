@@ -56,7 +56,7 @@ Examples:
 		"scenario to replay: bad-deploy|oom-cascade|node-pressure|cpu-throttle|false-positive")
 	cmd.Flags().BoolVar(&uiMode, "ui", false, "open the web UI instead of terminal output")
 	cmd.Flags().IntVar(&port, "port", 7750, "port for --ui mode (0 = random)")
-	cmd.Flags().StringVar(&savePath, "save", "",
+	cmd.Flags().StringVarP(&savePath, "save", "o", "",
 		"export the demo incident as a .rewind bundle to this path")
 	return cmd
 }

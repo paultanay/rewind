@@ -10,11 +10,17 @@ if (!app) throw new Error("Rewind mount point is missing");
 app.innerHTML = `
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand-link" href="/" aria-label="Rewind home">
-        <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M11 11h14a7 7 0 1 1 0 14H17m0 0 4-4m-4 4 4 4M29 29H15a7 7 0 1 1 0-14h8m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span><span class="brand-wordmark">REWIND</span><span class="brand-caption">incident evidence workspace</span></span>
-      </a>
-      <div class="topbar-status"><span id="collection-status"><span class="status-dot ok"></span> offline analysis</span><code id="top-incident-id">loading</code></div>
+      <div class="topbar-left">
+        <a class="brand-link" href="/" aria-label="Rewind home">
+          <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M11 11h14a7 7 0 1 1 0 14H17m0 0 4-4m-4 4 4 4M29 29H15a7 7 0 1 1 0-14h8m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span><span class="brand-wordmark">REWIND</span><span class="brand-caption">incident evidence workspace</span></span>
+        </a>
+        <span class="topbar-context">Review</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="topbar-status"><span id="collection-status"><span class="status-dot ok"></span> offline analysis</span><code id="top-incident-id">loading</code></div>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false"><span id="theme-icon"></span><span id="theme-label">Light</span></button>
+      </div>
     </header>
     <div id="loading" class="loading-state">Loading incident evidence…</div>
     <section id="fatal-error" class="fatal-state error-card" hidden aria-live="assertive"></section>
@@ -67,7 +73,7 @@ app.innerHTML = `
   </div>`;
 
 type ElementId =
-  | "loading" | "fatal-error" | "workspace" | "top-incident-id" | "collection-status"
+  | "loading" | "fatal-error" | "workspace" | "top-incident-id" | "collection-status" | "theme-toggle" | "theme-icon" | "theme-label"
   | "source-summary" | "incident-id" | "hypothesis-summary" | "verdicts" | "health-summary"
   | "sources" | "incident-title" | "overall-status" | "incident-window" | "summary" | "cursor"
   | "cursor-label" | "from-label" | "to-label" | "anomaly-count" | "anomalies" | "timeline" | "evidence" | "lanes";
@@ -77,6 +83,33 @@ const $ = <T extends HTMLElement = HTMLElement>(id: ElementId): T => {
   if (!node) throw new Error(`Missing UI element: ${id}`);
   return node as T;
 };
+
+type Theme = "light" | "dark";
+const themeStorageKey = "rewind.theme";
+
+function applyTheme(theme: Theme): void {
+  document.documentElement.dataset.theme = theme;
+  const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+  const toggle = $("theme-toggle");
+  toggle.setAttribute("aria-label", `Switch to ${nextTheme} theme`);
+  toggle.setAttribute("aria-pressed", String(theme === "dark"));
+  text($("theme-label"), nextTheme === "dark" ? "Dark" : "Light");
+  $("theme-icon").innerHTML = icon(nextTheme === "dark" ? "moon" : "sun");
+}
+
+function initialiseTheme(): void {
+  let saved: string | null = null;
+  try { saved = window.localStorage.getItem(themeStorageKey); } catch { /* storage can be unavailable in locked-down browsers */ }
+  const theme: Theme = saved === "dark" || saved === "light"
+    ? saved
+    : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  applyTheme(theme);
+  $("theme-toggle").addEventListener("click", () => {
+    const next: Theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    try { window.localStorage.setItem(themeStorageKey, next); } catch { /* preference remains active for this page */ }
+  });
+}
 
 const list = <T>(value: T[] | undefined): T[] => Array.isArray(value) ? value : [];
 const text = (node: Node, value: unknown): void => { node.textContent = value == null ? "" : String(value); };
@@ -204,7 +237,7 @@ function renderTimeline(incident: Incident): void {
 function sparkline(signal: Signal): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "sparkline"); svg.setAttribute("viewBox", "0 0 240 44"); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", `${signal.metric || "Signal"} trend`);
   const values = list(signal.points).map(point => Number(point.v)).filter(Number.isFinite); if (!values.length) return svg;
-  const min = Math.min(...values); const span = Math.max(Math.max(...values) - min, 1); const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline"); line.setAttribute("fill", "none"); line.setAttribute("stroke", "#58d3c7"); line.setAttribute("stroke-width", "2"); line.setAttribute("stroke-linecap", "round"); line.setAttribute("stroke-linejoin", "round"); line.setAttribute("points", values.map((value, index) => `${(index / Math.max(values.length - 1, 1)) * 238 + 1},${42 - ((value - min) / span) * 38}`).join(" ")); svg.append(line); return svg;
+  const min = Math.min(...values); const span = Math.max(Math.max(...values) - min, 1); const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline"); line.setAttribute("fill", "none"); line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2"); line.setAttribute("stroke-linecap", "round"); line.setAttribute("stroke-linejoin", "round"); line.setAttribute("points", values.map((value, index) => `${(index / Math.max(values.length - 1, 1)) * 238 + 1},${42 - ((value - min) / span) * 38}`).join(" ")); svg.append(line); return svg;
 }
 
 function renderLanes(incident: Incident): void {
@@ -234,4 +267,5 @@ async function load(): Promise<void> {
   }
 }
 
+initialiseTheme();
 void load();

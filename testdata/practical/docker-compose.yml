@@ -7,7 +7,7 @@ services:
       PORT: 8080
       DOWNSTREAM_URL: http://payments:8080
       LOKI_URL: http://loki:3100
-    ports: ["18080:8080"]
+    ports: ["${REWIND_PRACTICAL_CHECKOUT_PORT:-18080}:8080"]
     networks: [rewind-test]
     healthcheck:
       test: ["CMD", "/practical-service", "-healthcheck"]
@@ -22,7 +22,7 @@ services:
       NAMESPACE: shop
       PORT: 8080
       LOKI_URL: http://loki:3100
-    ports: ["18081:8080"]
+    ports: ["${REWIND_PRACTICAL_PAYMENTS_PORT:-18081}:8080"]
     networks: [rewind-test]
     healthcheck:
       test: ["CMD", "/practical-service", "-healthcheck"]
@@ -45,7 +45,7 @@ services:
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports: ["19090:9090"]
+    ports: ["${REWIND_PRACTICAL_PROMETHEUS_PORT:-19090}:9090"]
     networks: [rewind-test]
 
   alertmanager:
@@ -53,7 +53,7 @@ services:
     command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-    ports: ["19093:9093"]
+    ports: ["${REWIND_PRACTICAL_ALERTMANAGER_PORT:-19093}:9093"]
     networks: [rewind-test]
 
   loki:
@@ -61,7 +61,7 @@ services:
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./loki/loki.yml:/etc/loki/loki.yml:ro
-    ports: ["13100:3100"]
+    ports: ["${REWIND_PRACTICAL_LOKI_PORT:-13100}:3100"]
     networks: [rewind-test]
 
   tempo:
@@ -69,7 +69,7 @@ services:
     command: ["-config.file=/etc/tempo/tempo.yml"]
     volumes:
       - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
-    ports: ["13200:3200"]
+    ports: ["${REWIND_PRACTICAL_TEMPO_PORT:-13200}:3200"]
     networks: [rewind-test]
 
 networks:

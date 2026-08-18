@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$Keep
+    [switch]$Keep,
+    [int]$PortOffset = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,6 +14,33 @@ $bundle = Join-Path $runDir 'incident.rewind'
 $liveJSON = Join-Path $runDir 'live.json'
 $replayJSON = Join-Path $runDir 'replay.json'
 $stderr = Join-Path $runDir 'investigate.stderr'
+$ports = @{
+    checkout = 18080 + $PortOffset
+    payments = 18081 + $PortOffset
+    prometheus = 19090 + $PortOffset
+    alertmanager = 19093 + $PortOffset
+    loki = 13100 + $PortOffset
+    tempo = 13200 + $PortOffset
+}
+$envNames = @(
+    'REWIND_PRACTICAL_CHECKOUT_PORT', 'REWIND_PRACTICAL_PAYMENTS_PORT',
+    'REWIND_PRACTICAL_PROMETHEUS_PORT', 'REWIND_PRACTICAL_ALERTMANAGER_PORT',
+    'REWIND_PRACTICAL_LOKI_PORT', 'REWIND_PRACTICAL_TEMPO_PORT',
+    'REWIND_PROMETHEUS_URL', 'REWIND_LOKI_URL', 'REWIND_TEMPO_URL',
+    'REWIND_ALERTMANAGER_URL'
+)
+$previousEnv = @{}
+foreach ($name in $envNames) { $previousEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
+$env:REWIND_PRACTICAL_CHECKOUT_PORT = $ports.checkout
+$env:REWIND_PRACTICAL_PAYMENTS_PORT = $ports.payments
+$env:REWIND_PRACTICAL_PROMETHEUS_PORT = $ports.prometheus
+$env:REWIND_PRACTICAL_ALERTMANAGER_PORT = $ports.alertmanager
+$env:REWIND_PRACTICAL_LOKI_PORT = $ports.loki
+$env:REWIND_PRACTICAL_TEMPO_PORT = $ports.tempo
+$env:REWIND_PROMETHEUS_URL = "http://localhost:$($ports.prometheus)"
+$env:REWIND_LOKI_URL = "http://localhost:$($ports.loki)"
+$env:REWIND_TEMPO_URL = "http://localhost:$($ports.tempo)"
+$env:REWIND_ALERTMANAGER_URL = "http://localhost:$($ports.alertmanager)"
 
 function Wait-Http([string]$uri) {
     for ($i = 0; $i -lt 30; $i++) {
@@ -37,19 +65,20 @@ Push-Location $root
 try {
     Write-Host 'Starting practical observability stack...'
     docker compose -f $compose up -d --build
-    Wait-Http 'http://localhost:18080/health'
-    Wait-Http 'http://localhost:18081/health'
-    Wait-Http 'http://localhost:19090/-/ready'
-    Wait-Http 'http://localhost:19093/-/ready'
-    Wait-Http 'http://localhost:13100/ready'
-    Wait-Http 'http://localhost:13200/api/echo'
+    if ($LASTEXITCODE -ne 0) { throw "docker compose failed to start the practical stack (exit code $LASTEXITCODE)" }
+    Wait-Http "http://localhost:$($ports.checkout)/health"
+    Wait-Http "http://localhost:$($ports.payments)/health"
+    Wait-Http "http://localhost:$($ports.prometheus)/-/ready"
+    Wait-Http "http://localhost:$($ports.alertmanager)/-/ready"
+    Wait-Http "http://localhost:$($ports.loki)/ready"
+    Wait-Http "http://localhost:$($ports.tempo)/api/echo"
 
     $from = [DateTime]::UtcNow.AddSeconds(-5)
     Write-Host 'Collecting baseline telemetry for 60 seconds...'
     Wait-Seconds 60
 
     Write-Host 'Injecting payments failure...'
-    Invoke-WebRequest -Method Post -Uri 'http://localhost:18081/admin/fail?enabled=true' -UseBasicParsing | Out-Null
+    Invoke-WebRequest -Method Post -Uri "http://localhost:$($ports.payments)/admin/fail?enabled=true" -UseBasicParsing | Out-Null
     $failureAt = [DateTime]::UtcNow
     $alertObject = @{
         labels = @{ alertname = 'CheckoutHighErrorRate'; namespace = 'shop'; service = 'checkout'; app = 'checkout'; severity = 'critical' }
@@ -59,7 +88,7 @@ try {
         generatorURL = 'http://prometheus:9090/graph'
     }
     $alert = ConvertTo-Json -InputObject @($alertObject) -Depth 8
-    Invoke-RestMethod -Method Post -Uri 'http://localhost:19093/api/v2/alerts' -ContentType 'application/json' -Body $alert | Out-Null
+    Invoke-RestMethod -Method Post -Uri "http://localhost:$($ports.alertmanager)/api/v2/alerts" -ContentType 'application/json' -Body $alert | Out-Null
     Write-Host 'Collecting failure telemetry for 90 seconds...'
     Wait-Seconds 90
     $to = [DateTime]::UtcNow.AddSeconds(5)
@@ -103,5 +132,9 @@ try {
     Write-Host ("Artifacts: $runDir")
 } finally {
     if (-not $Keep) { docker compose -f $compose down --remove-orphans -v | Out-Null }
+    foreach ($name in $envNames) {
+        if ($null -eq $previousEnv[$name]) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
+        else { Set-Item "Env:$name" $previousEnv[$name] }
+    }
     Pop-Location
 }

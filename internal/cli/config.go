@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -94,7 +95,22 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Environment variables: REWIND_PROMETHEUS_URL etc.
 	v.SetEnvPrefix("REWIND")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	for _, key := range []string{
+		"source_timeout",
+		"prometheus.url", "prometheus.disabled",
+		"loki.url", "loki.tenant_id", "loki.username", "loki.password", "loki.grafana_base_url", "loki.max_sample_lines", "loki.disabled",
+		"kubernetes.kubeconfig", "kubernetes.context", "kubernetes.disabled",
+		"tempo.url", "tempo.tenant_id", "tempo.username", "tempo.password", "tempo.grafana_base_url", "tempo.disabled",
+		"github.token", "github.disabled",
+		"gitlab.url", "gitlab.token", "gitlab.disabled",
+		"alertmanager.url", "alertmanager.username", "alertmanager.password", "alertmanager.disabled",
+	} {
+		if err := v.BindEnv(key); err != nil {
+			return nil, fmt.Errorf("config: bind environment %s: %w", key, err)
+		}
+	}
 
 	if path != "" {
 		v.SetConfigFile(path)

@@ -1,6 +1,6 @@
 # Production-readiness implementation report
 
-Date: 2026-08-17
+Date: 2026-08-18
 Branch: feat/production-readiness
 
 ## Outcome
@@ -21,10 +21,11 @@ internet-scale reliability, or a mature hosted product.
 - Versioned source-result fixtures, safe bundle paths, and offline replay that
   rebuilds analysis input from fixtures.
 - Rebuilt embedded UI with verdict summary, source health, replay scrubber,
-  evidence timeline, entity lanes, sparklines, responsive layout, and safe
-  text rendering.
-- Valid golangci-lint v2 configuration, make verify, CI alignment, and
-  contributor/security/release documentation.
+  evidence timeline, entity lanes, sparklines, responsive layout, accessible
+  focus states, and safe text rendering. The UI now has a TypeScript/Vite source
+  tree and a deterministic embedded build.
+- Branded README, architecture/investigation diagrams, public evaluation guide,
+  operations guidance, repository hygiene checks, and Apache-2.0 metadata.
 
 ## Verification evidence
 
@@ -40,6 +41,13 @@ The following passed on this branch:
 - saved demo archive contains incident.json and sources/demo.json
 - replayed saved bundle offline and parsed JSON output successfully
 - embedded UI JavaScript node --check
+- npm --prefix web ci
+- npm --prefix web run typecheck
+- npm --prefix web test
+- npm --prefix web run build
+- nested `REWIND_*` configuration override regression test
+- scripts/check-repository.ps1
+- scripts/check-docs.ps1
 - git diff --check
 
 The Docker practical test also passed from a clean Compose stack:
@@ -55,18 +63,21 @@ The Docker practical test also passed from a clean Compose stack:
 - Live and replay entity/event/signal counts matched.
 - The result correctly reported no trigger because this scenario contained no
   deployment or CI/CD trigger; alert evidence alone did not create a cause.
+- The run used `testdata/practical/run.ps1 -PortOffset 1000` because the
+  persistent local distributed test stack already occupied the default ports.
+- The run produced 1 entity, 1 alert event, and 5 signals, exported the bundle,
+  stopped the observability containers, and printed `OFFLINE_REPLAY_OK`.
 
 ## Known limitations
 
-- Visual browser verification was unavailable; see ui-checklist.md.
 - Source fixtures currently store normalized collector results plus optional
   raw metadata. They are replayable, but not yet a faithful capture of every
   native Prometheus/Loki/Tempo HTTP response.
 - Several live-source event IDs remain generated per collection, so identical
   live runs are not globally byte-identical even though analysis ordering is
   deterministic.
-- The UI is still a single embedded HTML asset without a frontend build
-  pipeline.
+- Visual browser verification remains a manual follow-up because no browser
+  automation target is available in this environment.
 - Testdata is not yet a broad ten-plus golden corpus.
 - Kubernetes, CI/CD, logs, traces, and alert integrations still need
   production-scale pagination, authentication, rate-limit, and contract
@@ -74,7 +85,7 @@ The Docker practical test also passed from a clean Compose stack:
 
 ## PR summary
 
-Recommended PR title: feat: harden incident collection and offline replay
+Recommended PR title: feat: establish a credible Rewind public-alpha baseline
 
 The PR should present this as a public-alpha reliability and trust milestone,
 with the limitations above stated plainly.

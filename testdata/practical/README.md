@@ -20,6 +20,9 @@ From the repository root in PowerShell:
 ```powershell
 docker version
 ./testdata/practical/run.ps1
+
+# If another local stack owns the default ports, use an isolated range.
+./testdata/practical/run.ps1 -PortOffset 1000
 ```
 
 The run takes roughly 3 minutes because Prometheus needs a baseline and a
@@ -41,13 +44,15 @@ path and high-confidence rendering.
 
 ## Inspect manually
 
-While running:
+While running (with the default ports):
 
 - Checkout: http://localhost:18080/health
 - Prometheus: http://localhost:19090/graph
 - Alertmanager: http://localhost:19093
 - Loki: http://localhost:13100/ready
 - Tempo: http://localhost:13200/api/echo
+
+With `-PortOffset 1000`, add 1000 to each port in these URLs.
 
 To inspect the saved artifacts, use the temporary directory printed by the
 script. The generated bundle is deliberately not written into the repository.

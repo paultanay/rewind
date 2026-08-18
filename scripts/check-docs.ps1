@@ -10,7 +10,7 @@ $required = @(
   'docs/operations.md',
   'docs/assets/architecture.svg',
   'docs/assets/investigation-flow.svg',
-  'docs/assets/ui-demo.svg'
+  'docs/assets/ui-demo.png'
 )
 
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
@@ -21,10 +21,10 @@ if ($missing.Count -gt 0) {
 }
 
 $broken = @()
-Get-ChildItem -Path . -Recurse -File -Filter '*.md' |
-  Where-Object { $_.FullName -notmatch '[\\/]node_modules[\\/]' -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
-  ForEach-Object {
-  $file = $_
+$markdownFiles = @(git ls-files -- '*.md')
+foreach ($relativePath in $markdownFiles) {
+  if (-not $relativePath) { continue }
+  $file = Get-Item -LiteralPath $relativePath
   $content = Get-Content -LiteralPath $file.FullName -Raw
   $matches = [regex]::Matches($content, '\[[^\]]+\]\(([^)]+)\)')
   foreach ($match in $matches) {

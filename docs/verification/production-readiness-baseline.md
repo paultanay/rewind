@@ -1,27 +1,29 @@
-# Production-readiness baseline
+# Historical production-readiness baseline
+
+This document records the baseline checks performed before Rewind's first
+public-alpha hardening pass. It is retained as historical engineering
+evidence; the current project scope and limitations are described in the
+README and [roadmap](../roadmap.md).
 
 Date: 2026-08-17  
-Branch: `feat/production-readiness`  
 Commit under test: `8a5ca83`
 
 ## Environment
 
 - OS: Windows PowerShell
 - Go: `go1.25.6 windows/amd64`
-- Repository state at baseline: clean apart from the implementation plan created on this branch.
-- The original `main` checkout contains separate uncommitted user files and was not modified.
+- Repository state at baseline: clean
 
 ## Verification results
 
 | Check | Result | Evidence |
-|---|---|---|
-| Full Go tests | PASS | `go test -count=1 ./...` — all packages passed |
+| --- | --- | --- |
+| Full Go tests | PASS | `go test -count=1 ./...` - all packages passed |
 | Vet | PASS | `go vet ./...` |
-| Build | PASS | `go build ./cmd/rewind` |
-| Linter availability | FAIL | `golangci-lint` is not on PATH; repository-local v2.12.2 binary was used for validation |
-| Linter config | FAIL | v2.12.2 reports `unsupported version of the configuration: ""` for the committed v1 configuration |
+| Linter availability | FAIL | `golangci-lint` was not on PATH; a repository-local v2.12.2 binary was used for validation |
+| Linter config | FAIL | v2.12.2 reported an unsupported empty configuration version |
 
-## CLI/demo observations
+## CLI and demo observations
 
 All five documented demo scenarios executed without a process failure:
 
@@ -31,15 +33,14 @@ All five documented demo scenarios executed without a process failure:
 - `cpu-throttle`: RW004 speculative verdict.
 - `false-positive`: no clear trigger and notable anomalies only.
 
-The saved `bad-deploy` bundle was inspected with `tar -tzf`. It contained only:
-
-```text
-incident.json
-```
-
-No `sources/*.json` entries were produced by the demo, despite the bundle and README contracts describing raw source fixtures and offline replay. This is a confirmed product contract gap, not an assumption.
+The saved `bad-deploy` bundle was inspected with `tar -tzf`. It contained only
+`incident.json`; no `sources/*.json` entries were produced by the demo even
+though the bundle and README contracts described source fixtures and offline
+replay. This was a confirmed product contract gap at that baseline.
 
 ## Baseline conclusion
 
-The current branch is buildable and has useful analysis behavior, but it is not yet a trustworthy public alpha. The first implementation slice must fix the lint/toolchain contract and establish tests around deterministic source status and replay artifacts before expanding the UI or source surface.
-
+The baseline was buildable and had useful analysis behavior, but it was not yet
+ready for public evaluation. The subsequent hardening work addressed the lint
+and toolchain contract, source-status behavior, replay artifacts, and public
+documentation before the public-alpha release.

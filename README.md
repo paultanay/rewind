@@ -15,7 +15,7 @@ replace an incident review.
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
 [![CI](https://github.com/paultanay/rewind/actions/workflows/ci.yml/badge.svg)](https://github.com/paultanay/rewind/actions/workflows/ci.yml)
 
-![Rewind incident workspace preview](docs/assets/ui-demo.svg)
+![Rewind incident workspace from a practical validation run](docs/assets/ui-demo.png)
 
 ## Why Rewind exists
 

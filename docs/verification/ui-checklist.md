@@ -9,5 +9,6 @@
   exist for the replay range and evidence timeline.
 - [x] Responsive layout and reduced-motion CSS are present.
 - [x] Empty, partial-source, and failed-source states have explicit copy.
-- [ ] Browser screenshot verification: unavailable in this environment because
-  no browser automation target is available. No visual pass is claimed.
+- [x] Manual practical-validation screenshot is committed at
+  `docs/assets/ui-demo.png` and contains synthetic demo data only.
+- [ ] Automated browser interaction verification: not run in this environment.

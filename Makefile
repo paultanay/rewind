@@ -1,6 +1,6 @@
 # Rewind — Makefile
 # Targets are designed to be composable and CI-friendly.
-# Requires: Go 1.22+, golangci-lint, goreleaser (for release).
+# Requires: Go 1.25+, golangci-lint v2, goreleaser (for release).
 
 BINARY      := rewind
 MODULE      := github.com/paultanay/rewind
@@ -11,14 +11,19 @@ BUILD_FLAGS := -trimpath -ldflags "$(LDFLAGS)"
 # CGO disabled — single static binary, cross-compile friendly.
 export CGO_ENABLED=0
 
-.PHONY: all build test race demo check build-all lint vet tidy clean install coverage help
+.PHONY: all build build-ui test race demo demo-all check verify build-all lint vet fmt-check repo-check docs-check tidy clean install coverage help
 
 all: build
 
 ## build: compile the binary to ./bin/rewind
-build:
+build: build-ui
 	@mkdir -p bin
 	go build $(BUILD_FLAGS) -o bin/$(BINARY) ./cmd/rewind
+
+## build-ui: compile the browser workspace into the embedded UI directory
+build-ui:
+	npm --prefix web ci
+	npm --prefix web run build
 
 ## install: install to $GOPATH/bin
 install:
@@ -58,6 +63,22 @@ coverage:
 ## check: vet + test + build (fast pre-commit check)
 check: vet test build
 	@echo "All checks passed."
+
+## fmt-check: verify that all Go files are gofmt-formatted
+fmt-check:
+	@test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))" || (echo "Go files need formatting"; exit 1)
+
+## verify: run the complete local quality gate
+verify: fmt-check repo-check docs-check vet test lint build
+	@echo "Verification passed."
+
+## repo-check: reject tracked local and process artifacts
+repo-check:
+	pwsh -NoProfile -File scripts/check-repository.ps1
+
+## docs-check: validate required documentation assets and local links
+docs-check:
+	pwsh -NoProfile -File scripts/check-docs.ps1
 
 ## build-all: cross-compile for all release platforms
 build-all:

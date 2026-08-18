@@ -3,6 +3,7 @@ package correlate
 import (
 	"fmt"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/paultanay/rewind/internal/model"
@@ -494,7 +495,7 @@ func (r RW008) Apply(ctx RuleContext) []Edge {
 
 // ─── RW009: Crash loop coalescing ────────────────────────────────────────────
 
-// RW009 synthesises a CrashLoop event when ≥3 Restart events occur on the same
+// RW009 synthesizes a CrashLoop event when ≥3 Restart events occur on the same
 // pod within 10 minutes. This is event coalescing, not just correlation: it
 // creates a new high-severity event in the Incident that downstream rules can
 // reference.
@@ -518,7 +519,13 @@ func (r RW009) Apply(ctx RuleContext) []Edge {
 		byEntity[e.EntityID] = append(byEntity[e.EntityID], e)
 	}
 
-	for entityID, evs := range byEntity {
+	entityIDs := make([]string, 0, len(byEntity))
+	for entityID := range byEntity {
+		entityIDs = append(entityIDs, entityID)
+	}
+	sort.Strings(entityIDs)
+	for _, entityID := range entityIDs {
+		evs := byEntity[entityID]
 		// Sliding window: find the earliest group of ≥3 restarts within 10m
 		for i := 0; i < len(evs); i++ {
 			j := i

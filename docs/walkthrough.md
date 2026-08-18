@@ -1,8 +1,11 @@
-# Rewind — Enterprise Validation Walkthrough
+# Rewind — practical distributed validation
 
-> **Goal:** Run a fully realistic MAANG-grade distributed system inside Docker,
-> break it in three ways, and validate Rewind reconstructs every incident correctly.
-> This is exactly how an SRE at Google, Netflix, or Stripe would onboard the tool.
+> **Goal:** Run a bounded Docker test system, inject a known failure, and verify
+> that Rewind records source health, evidence, bundle export, and offline replay.
+
+This is a local validation exercise, not a claim of production equivalence or
+customer adoption. For the maintained repository fixture, prefer
+[`testdata/practical/README.md`](../testdata/practical/README.md).
 
 ---
 
@@ -34,7 +37,7 @@ ways and run `rewind investigate` after each to validate the verdict.
 ## Prerequisites
 
 - Docker Desktop (already installed ✅)
-- Go 1.23+ (already installed ✅)
+- Go 1.25+ (already installed ✅)
 - `rewind` binary built locally
 
 ---

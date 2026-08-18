@@ -74,7 +74,7 @@ func (c *Collector) Check(ctx context.Context) error {
 		if err != nil {
 			errs = append(errs, "github: "+err.Error())
 		} else {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode >= 400 {
 				errs = append(errs, fmt.Sprintf("github: HTTP %d", resp.StatusCode))
 			}
@@ -357,7 +357,7 @@ func (c *Collector) get(ctx context.Context, endpoint string, headers map[string
 			continue
 		}
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if resp.StatusCode >= 500 {
 			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, truncate(string(body), 200))

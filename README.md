@@ -1,263 +1,146 @@
-# ⏪ Rewind — Incident Replay Engine
+# Rewind
 
-> **Reconstruct a production incident as a single, scrubbable timeline.**
-> Deployments, metric anomalies, log error bursts, Kubernetes events, and traces — all correlated and causally ranked in one command.
+> Reconstruct a bounded production incident as a reviewable chain of evidence.
 
-[![Go 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)](../../actions)
+Rewind is a read-only incident replay engine for teams that already collect
+metrics, logs, traces, alerts, and deployment events. It pulls a time window
+from those systems, normalises the results into one incident model, and ranks
+possible triggers with deterministic rules.
 
----
+It is an early open-source project. Rewind helps organise evidence and expose
+strong temporal relationships; it does not prove root cause and it does not
+replace an incident review.
 
-## Quick start (5 minutes)
+[![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
+[![CI](https://github.com/paultanay/rewind/actions/workflows/ci.yml/badge.svg)](https://github.com/paultanay/rewind/actions/workflows/ci.yml)
+
+![Rewind incident workspace preview](docs/assets/ui-demo.svg)
+
+## Why Rewind exists
+
+During an incident, the relevant facts are usually split across several
+systems. Rewind gives an engineer one portable view of:
+
+- what changed before the impact;
+- which signals changed and how strongly;
+- which entities were involved;
+- which sources were available or incomplete; and
+- why a rule ranked one hypothesis above another.
+
+The output is a `.rewind` bundle that can be opened and analysed offline. This
+makes an investigation reproducible without retaining live credentials or
+asking a reviewer to recreate the original outage.
+
+## Five-minute demo
+
+Requirements: Go 1.25 or newer.
 
 ```bash
-# 1. Install
 go install github.com/paultanay/rewind/cmd/rewind@latest
+rewind demo --scenario bad-deploy
+rewind demo --scenario bad-deploy --ui
+```
 
-# 2. Run the offline demo (no cluster required)
-rewind demo
+The demo is self-contained and does not contact a cluster. To save the result
+and replay it later:
 
-# 3. Open the web UI for the demo
-rewind demo --ui
-
-# 4. Investigate a real incident
-rewind investigate \
-  --from 14:00 --to 14:45 \
-  --namespace shop \
-  --config rewind.yaml
-
-# 5. Save and replay
-rewind investigate --from -1h --namespace shop -o incident.rewind
+```bash
+rewind demo --scenario bad-deploy -o incident.rewind
 rewind ui incident.rewind
-```
-
-`rewind demo` produces output like this:
-
-```
-────────────────────────────────────────────────────────────────
-  VERDICT
-────────────────────────────────────────────────────────────────
-► [1] confidence: HIGH  rules: RW001
-    trigger : Deployed checkout v2.3.1
-    reason  : Deploy at 14:05 → latency.p99 ×6.6 at 14:07 → error.rate ×19.9 at 14:13
-    chain:
-      → Deploy event: Deployed checkout v2.3.1
-      → 6.6× latency.p99 change-point 2m after deploy
-      → 19.9× error.rate change-point 8m after deploy
-```
-
----
-
-## What it does
-
-Rewind pulls from your existing observability stack — no agents, no sidecars, no schema changes — and applies a **deterministic rule engine** (RW001–RW010) to produce a ranked verdict:
-
-| Source | What it collects |
-|--------|-----------------|
-| **Prometheus** | Latency, error rate, CPU, memory, restarts — change-point detection |
-| **Kubernetes** | Deploys, OOMKills, probe failures, node pressure, evictions |
-| **GitHub / GitLab** | CI/CD pipeline runs, merge commit timestamps |
-| **Loki** | Error log burst detection (count_over_time, not raw logs) |
-| **Grafana Tempo** | Trace error rates, P99 latency, service call-graph topology |
-| **Alertmanager** | Alert fingerprints as corroborating evidence (never triggers) |
-
----
-
-## Demo scenarios
-
-```bash
-rewind demo --scenario bad-deploy      # bad deploy → latency + error rate spike (HIGH confidence)
-rewind demo --scenario oom-cascade     # OOMKill → crash loop → downstream cascade
-rewind demo --scenario node-pressure   # node memory pressure → pod eviction
-rewind demo --scenario cpu-throttle    # CPU throttling → p99 latency degradation
-rewind demo --scenario false-positive  # noisy alerts, no real trigger (no HIGH verdict)
-```
-
----
-
-## Correlation rules
-
-```bash
-rewind explain            # list all rules
-rewind explain RW001      # deploy → metric change-point
-rewind explain RW009      # crash loop detection (event coalescing)
-rewind explain RW010      # alert corroboration — alerts are symptoms, never triggers
-```
-
-| Rule | Name | When it fires |
-|------|------|---------------|
-| RW001 | Deploy → Metric CP | Deploy followed by change-point within 10m |
-| RW002 | Config Change → Metric CP | Config change followed by change-point within 15m |
-| RW003 | OOMKill Evidence | memory.usage ↑ → OOMKill → Restart chain |
-| RW004 | CPU Saturation → Latency | CPU throttle CP precedes latency CP by ≤5m |
-| RW005 | Upstream Cascade | Upstream error CP precedes downstream CP + call-graph path |
-| RW006 | Node Pressure → Eviction | NodePressure → PodKilled within 5m |
-| RW007 | Probe Failure → Restart | ProbeFailed → Restart within 3m |
-| RW008 | Log Burst Correlation | LogBurst ↔ error.rate CP within 5m (corroboration) |
-| RW009 | CrashLoop Detection | ≥3 restarts in 10m → synthetic CrashLoop event |
-| RW010 | Alert Corroboration | AlertFired adds evidence, **never** creates a trigger |
-
----
-
-## Configuration
-
-Create `rewind.yaml` in your working directory:
-
-```yaml
-prometheus:
-  url: http://prometheus.monitoring:9090
-
-kubernetes:
-  kubeconfig: ~/.kube/config   # optional, uses in-cluster config if empty
-  context: my-cluster
-
-loki:
-  url: http://loki.monitoring:3100
-  tenant_id: ""                # X-Scope-OrgID for multi-tenant
-  grafana_base_url: https://grafana.example.com
-
-tempo:
-  url: http://tempo.monitoring:3200
-  grafana_base_url: https://grafana.example.com
-
-alertmanager:
-  url: http://alertmanager.monitoring:9093
-
-github:
-  token: ${GITHUB_TOKEN}       # or REWIND_GITHUB_TOKEN env var
-  repos:
-    - my-org/checkout
-    - my-org/payments
-
-source_timeout: 15s
-```
-
-All fields support `REWIND_*` environment variable overrides (e.g. `REWIND_PROMETHEUS_URL`).
-
----
-
-## CLI reference
-
-```
-rewind investigate --from <t> --to <t> [--namespace ns] [--service svc]
-                   [--format term|md|json] [-o incident.rewind] [--replay bundle]
-rewind ui          [incident.rewind] [--port 7750]
-rewind demo        [--scenario bad-deploy|oom-cascade|node-pressure|cpu-throttle|false-positive]
-                   [--ui] [--port 7750]
-rewind sources     # connectivity + capability check per configured source
-rewind explain     [RULE_ID]
-rewind export      incident.rewind
-rewind import      incident.rewind
-rewind version
-```
-
-**Time formats:** RFC3339 (`2026-07-09T14:00:00Z`), `14:00` (today local), `-45m` (relative).
-
-**Exit codes:** `0` = ok, `1` = Critical findings (for CI gating), `2` = usage error, `3` = all sources failed, `4` = internal error.
-
----
-
-## Bundle format
-
-Rewind exports portable `.rewind` bundles (zip + JSON) that replay fully offline:
-
-```bash
-# Save
-rewind investigate --from -1h --namespace shop -o incident.rewind
-
-# Replay (re-runs analysis engine on same raw data)
 rewind investigate --replay incident.rewind
+```
 
-# Open in web UI
+See [Getting started](docs/getting-started.md) for a real configuration and
+[the practical Docker test](testdata/practical/README.md) for a reproducible
+distributed-system exercise.
+
+## Investigate a real window
+
+Create `rewind.yaml` from [the configuration reference](docs/config-reference.md),
+then run:
+
+```bash
+rewind sources
+rewind investigate \
+  --from 2026-07-09T14:00:00Z \
+  --to 2026-07-09T14:45:00Z \
+  --namespace shop \
+  --service checkout \
+  --format term \
+  -o incident.rewind
 rewind ui incident.rewind
 ```
 
-Bundles are forward-compatible: unknown fields are preserved; `schemaVersion` is validated.
+The live run is read-only. The browser UI serves the exported incident locally
+and does not need a network connection to render the bundle.
 
----
+## Sources
+
+| Source | Evidence collected |
+| --- | --- |
+| Prometheus | Metric series and change-points for latency, errors, resource pressure, restarts, and queues |
+| Kubernetes | Deployments, pod lifecycle events, OOM kills, probe failures, node pressure, and evictions |
+| Loki | Error-rate bursts and bounded log excerpts |
+| Grafana Tempo | Trace error/latency signals and service topology references |
+| Alertmanager | Alert lifecycle events as corroborating evidence, never as a trigger |
+| GitHub / GitLab | CI/CD pipeline and merge/deployment timestamps |
+
+Each source reports `ok`, `partial`, `failed`, or `skipped`. A useful partial
+result is preserved with its error so the UI cannot imply complete coverage.
+
+## Deterministic rules
+
+Rules are deliberately inspectable. Use `rewind explain` to view the catalog.
+
+| Rule | Relationship |
+| --- | --- |
+| RW001 | Deployment followed by a metric change-point |
+| RW002 | Configuration change followed by a metric change-point |
+| RW003 | Memory pressure, OOM kill, and restart chain |
+| RW004 | CPU saturation preceding latency degradation |
+| RW005 | Upstream error preceding a downstream change through topology |
+| RW006 | Node pressure preceding pod eviction |
+| RW007 | Queue lag preceding consumer latency |
+| RW008 | Scale-down preceding saturation |
+| RW009 | Repeated restarts coalesced into a crash-loop event |
+| RW010 | Alert corroboration without allowing alerts to become triggers |
 
 ## Architecture
 
-```
-Sources (parallel, read-only, 15s timeout each)
-  Prometheus ── Kubernetes ── GitHub/GitLab ── Loki ── Tempo ── Alertmanager
-       │
-       ▼
-   model.Incident  (Events + Signals + Entities)
-       │
-       ▼
-   analyze.RunFull
-   ├── changepoint.Detect     (CUSUM + PELT on every signal)
-   ├── topology.Build         (entity graph from K8s + Tempo traces)
-   └── correlate.Run          (RW001–RW010 deterministic rule engine)
-       │
-       ▼
-   model.Verdict   (ranked hypotheses with confidence + causal chain)
-       │
-   ┌───┴────┐
-   │terminal│  markdown  │  JSON  │  web UI (127.0.0.1:7750)
-   └────────┘
-```
+Collectors translate native APIs into `model.Incident`; the analysis engine
+adds derived evidence and ranked hypotheses; terminal, Markdown, JSON, and the
+embedded UI render the same model.
 
-See [`docs/architecture.md`](docs/architecture.md) for full detail.
+![Rewind data flow](docs/assets/architecture.svg)
 
----
+Read [Architecture](docs/architecture.md) for contracts, failure semantics,
+bundle boundaries, and the local HTTP API.
 
-## Development
+## Project documentation
 
-```bash
-# Build
-go build ./cmd/rewind
+- [Getting started](docs/getting-started.md) — install, demo, first replay.
+- [Investigation workflow](docs/investigation-workflow.md) — read the verdict,
+  timeline, source health, and evidence inspector.
+- [Configuration reference](docs/config-reference.md) — complete YAML and
+  environment-variable mapping.
+- [Source guides](docs/sources/) — prerequisites and query behaviour.
+- [Bundle specification](docs/bundle-spec.md) — portable format and replay
+  guarantees.
+- [Operations](docs/operations.md) — CI exit codes, security, troubleshooting,
+  and upgrade practices.
+- [Rules](docs/rules/) — individual correlation rules and examples.
+- [Contributing](CONTRIBUTING.md) — development and review expectations.
+- [Security policy](SECURITY.md) — private vulnerability reporting.
 
-# Test (all packages, race detector)
-go test -race ./...
+## Current boundaries
 
-# Lint
-golangci-lint run
-
-# Run demo
-go run ./cmd/rewind demo
-
-# Run demo with web UI
-go run ./cmd/rewind demo --ui
-```
-
-### Project structure
-
-```
-cmd/rewind/         # main entrypoint
-internal/
-  model/            # core types (Incident, Event, Signal, Verdict)
-  analyze/          # analysis pipeline
-    changepoint/    # CUSUM + PELT detectors
-    correlate/      # RW001–RW010 rule engine
-    topology/       # entity graph BFS utilities
-  sources/          # source collectors
-    prometheus/     kubernetes/  loki/  tempo/  alertmanager/  cicd/
-  bundle/           # .rewind bundle export/import
-  cli/              # cobra commands
-  server/           # embedded web UI HTTP server
-  render/
-    terminal/       # ANSI timeline renderer
-    markdown/       # markdown report renderer
-testdata/           # golden incident fixtures
-docs/               # architecture, config reference, rule pages
-```
-
----
-
-## Non-goals
-
-Rewind is intentionally **not**:
-- A log storage system (use Loki/Elasticsearch)
-- A metrics database (use Prometheus/Thanos)
-- A real-time alerting tool (use Alertmanager)
-- An ML-based root cause analysis system (deterministic rules only)
-- A hosted/cloud service (single binary, runs wherever Go runs)
-
----
+Rewind currently has no hosted control plane, database, agent, or automatic
+remediation. It cannot establish causality when the relevant deployment/event
+source is missing, and a high score is a ranked explanation rather than a
+guarantee. Source coverage and the evidence chain should be included in every
+postmortem that uses Rewind.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Rewind is available under the [Apache License 2.0](LICENSE).

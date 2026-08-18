@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,7 +66,7 @@ func (c *Collector) Check(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("alertmanager connectivity check: %w", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("alertmanager returned HTTP %d", resp.StatusCode)
 	}
@@ -190,14 +191,8 @@ type amAlert struct {
 func (c *Collector) fetchAlerts(ctx context.Context, scope model.Scope) ([]amAlert, error) {
 	reqURL := strings.TrimRight(c.cfg.URL, "/") + "/api/v2/alerts"
 	params := url.Values{}
-	// Filter by namespace if provided.
-	for _, ns := range scope.Namespaces {
-		params.Add("filter", fmt.Sprintf(`namespace="%s"`, ns))
-	}
-	// Also include service-level filters.
-	for _, svc := range scope.Services {
-		params.Add("filter", fmt.Sprintf(`app="%s"`, svc))
-	}
+	addScopeFilter(params, "namespace", scope.Namespaces)
+	addScopeFilter(params, "app", scope.Services)
 	if len(params) > 0 {
 		reqURL += "?" + params.Encode()
 	}
@@ -231,6 +226,26 @@ func (c *Collector) fetchAlerts(ctx context.Context, scope model.Scope) ([]amAle
 	return alerts, nil
 }
 
+func addScopeFilter(params url.Values, label string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+	if len(values) == 1 {
+		params.Add("filter", fmt.Sprintf(`%s="%s"`, label, escapeMatcherValue(values[0])))
+		return
+	}
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, escapeMatcherValue(value))
+	}
+	params.Add("filter", fmt.Sprintf(`%s=~"^(%s)$"`, label, strings.Join(quoted, "|")))
+}
+
+func escapeMatcherValue(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	return strings.ReplaceAll(value, `"`, `\"`)
+}
+
 func (c *Collector) setHeaders(req *http.Request) {
 	req.Header.Set("User-Agent", "rewind/"+c.version)
 	if c.cfg.Username != "" {
@@ -254,15 +269,21 @@ func (c *Collector) formatAlertDetail(a amAlert) string {
 	if v := a.Annotations["description"]; v != "" {
 		sb.WriteString("Description: " + v + "\n")
 	}
-	sb.WriteString(fmt.Sprintf("State: %s\n", a.Status.State))
+	_, _ = fmt.Fprintf(&sb, "State: %s\n", a.Status.State)
 	if !a.StartsAt.IsZero() {
-		sb.WriteString(fmt.Sprintf("Started: %s\n", a.StartsAt.UTC().Format(time.RFC3339)))
+		_, _ = fmt.Fprintf(&sb, "Started: %s\n", a.StartsAt.UTC().Format(time.RFC3339))
 	}
-	for k, v := range a.Labels {
+	keys := make([]string, 0, len(a.Labels))
+	for k := range a.Labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := a.Labels[k]
 		if k == "alertname" {
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("  %s=%s\n", k, v))
+		_, _ = fmt.Fprintf(&sb, "  %s=%s\n", k, v)
 	}
 	return sb.String()
 }
@@ -277,13 +298,13 @@ func alertEntityID(a amAlert) string {
 		return "pod/" + ns + "/" + pod
 	}
 	if dep := a.Labels["deployment"]; dep != "" && ns != "" {
-		return "deploy/" + ns + "/" + dep
+		return model.NewEntityID(model.EntityKindDeployment, ns, dep)
 	}
 	if app := a.Labels["app"]; app != "" && ns != "" {
-		return "svc/" + ns + "/" + app
+		return model.NewEntityID(model.EntityKindService, ns, app)
 	}
 	if svc := a.Labels["service"]; svc != "" && ns != "" {
-		return "svc/" + ns + "/" + svc
+		return model.NewEntityID(model.EntityKindService, ns, svc)
 	}
 	if ns != "" {
 		return "ns/" + ns

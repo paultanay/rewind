@@ -91,7 +91,7 @@ func (c *Collector) Check(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("loki connectivity check: %w", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("loki returned HTTP %d", resp.StatusCode)
 	}
@@ -187,7 +187,7 @@ func (c *Collector) collectForTarget(
 }
 
 // detectBursts finds periods where the error rate significantly exceeds the
-// baseline and synthesises LogBurst events. For each burst it fetches sample
+// baseline and synthesizes LogBurst events. For each burst it fetches sample
 // lines for the Detail field.
 func (c *Collector) detectBursts(
 	ctx context.Context,
@@ -283,7 +283,7 @@ func (c *Collector) fetchSamples(ctx context.Context, streamSel string, at time.
 	resp, err := c.client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		return ""
 	}
@@ -303,7 +303,7 @@ func (c *Collector) fetchSamples(ctx context.Context, streamSel string, at time.
 	for _, stream := range qr.Data.Result {
 		for _, val := range stream.Values {
 			if len(val) >= 2 {
-				lines = append(lines, val[1])
+				lines = append(lines, rawValueString(val[1]))
 			}
 		}
 	}
@@ -343,7 +343,7 @@ func (c *Collector) queryRange(ctx context.Context, window model.TimeRange, step
 			return nil, err
 		}
 		body, err = io.ReadAll(io.LimitReader(resp.Body, 4*1024*1024))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -367,13 +367,19 @@ func (c *Collector) queryRange(ctx context.Context, window model.TimeRange, step
 			if len(val) < 2 {
 				continue
 			}
-			var tsNs int64
+			var ts float64
 			var v float64
-			if _, err := fmt.Sscanf(val[0], "%d", &tsNs); err != nil {
+			if _, err := fmt.Sscanf(rawValueString(val[0]), "%f", &ts); err != nil {
 				continue
 			}
-			if _, err := fmt.Sscanf(val[1], "%f", &v); err != nil {
+			if _, err := fmt.Sscanf(rawValueString(val[1]), "%f", &v); err != nil {
 				continue
+			}
+			// Loki stream queries encode timestamps as nanosecond strings,
+			// while metric queries encode Unix-second numbers. Accept both.
+			tsNs := int64(ts)
+			if ts < 1e12 {
+				tsNs = int64(ts * float64(time.Second))
 			}
 			pts = append(pts, model.Point{
 				T: time.Unix(0, tsNs),
@@ -414,10 +420,18 @@ type queryRangeResponse struct {
 	Data struct {
 		ResultType string `json:"resultType"`
 		Result     []struct {
-			Stream map[string]string `json:"stream"`
-			Values [][]string        `json:"values"` // [timestamp_ns, value_or_line]
+			Stream map[string]string   `json:"stream"`
+			Values [][]json.RawMessage `json:"values"` // [timestamp, value_or_line]
 		} `json:"result"`
 	} `json:"data"`
+}
+
+func rawValueString(value json.RawMessage) string {
+	var text string
+	if err := json.Unmarshal(value, &text); err == nil {
+		return text
+	}
+	return strings.Trim(string(value), `"`)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -431,7 +445,7 @@ func buildStreamSelector(ns, svc string) string {
 
 func entityIDFor(ns, svc string) string {
 	if svc != "" {
-		return "svc/" + ns + "/" + svc
+		return model.NewEntityID(model.EntityKindService, ns, svc)
 	}
 	return "ns/" + ns
 }

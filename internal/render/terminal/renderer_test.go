@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	// Always disable colour in tests so snapshots are deterministic.
+	// Always disable color in tests so snapshots are deterministic.
 	color.NoColor = true
 }
 

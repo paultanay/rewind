@@ -1,0 +1,18 @@
+@import "./tokens.css";
+
+* { box-sizing: border-box; }
+html { background: var(--canvas); scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--text); font: 14px/1.55 var(--font-sans); }
+body, button, input { transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
+button, input { font: inherit; }
+button { color: inherit; }
+a { color: var(--brand); }
+h1, h2, h3, p, dl, dd, dt { margin: 0; }
+h1, h2, h3 { line-height: 1.2; }
+h1 { font-size: clamp(24px, 3vw, 34px); letter-spacing: -.025em; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+code, .mono { font-family: var(--font-mono); }
+[hidden] { display: none !important; }
+::selection { color: #fff; background: var(--brand); }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

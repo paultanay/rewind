@@ -170,12 +170,12 @@ func ProximityScore(graph *topology.Graph, triggerEntityID, effectEntityID strin
 		return 1.0
 	}
 	d := graph.Distance(triggerEntityID, effectEntityID)
-	switch {
-	case d == 1:
+	switch d {
+	case 1:
 		return 0.7
-	case d == 2:
+	case 2:
 		return 0.5
-	case d == 3:
+	case 3:
 		return 0.35
 	default:
 		return 0.2

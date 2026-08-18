@@ -58,8 +58,9 @@ All other fields in `model.Incident` are optional. An empty `events` or
 
 ### Forward compatibility
 
-- **Unknown fields are preserved on read.** Newer versions of rewind may add
-  fields; older readers will ignore them and round-trip them faithfully.
+- **Unknown fields are ignored on read.** Newer versions of rewind may add
+  fields; older readers can still parse the known portion, but exporting with
+  an older reader does not preserve fields it does not understand.
 - **Schema version guard.** If `meta.schemaVersion` is greater than the
   reader's `CurrentSchemaVersion`, the reader must return an error and
   advise the user to upgrade.
@@ -81,7 +82,7 @@ Typical bundle size: **1–5 MB** for a 45-minute incident window.
 
 ---
 
-## Reproducibility
+## Offline and reproducibility guarantees
 
 Export → import → export **must** produce byte-identical output, with the
 exception of `meta.createdAt` which reflects the time of each export.
@@ -90,6 +91,10 @@ This is guaranteed by:
 - Deterministic JSON serialisation (sorted map keys via standard `encoding/json`)
 - Fixed tar entry mod times (Unix epoch 0)
 - Gzip best-compression level
+
+The embedded UI reads `incident.json` through the local loopback server and does
+not contact Prometheus, Loki, Tempo, Kubernetes, or any remote asset host while
+viewing a bundle.
 
 ---
 

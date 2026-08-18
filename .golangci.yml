@@ -1,55 +1,67 @@
-# golangci-lint configuration for Rewind.
+# golangci-lint v2 configuration for Rewind.
 # Run locally: golangci-lint run ./...
+
+version: "2"
 
 run:
   timeout: 5m
   modules-download-mode: readonly
 
 linters:
-  disable-all: true
+  default: none
   enable:
-    - errcheck      # unhandled errors
-    - govet         # standard go vet (sans shadow / fieldalignment)
-    - staticcheck   # advanced static analysis (SA*, S*, QF*)
-    - gosec         # security anti-patterns
-    - misspell      # spell-check in comments and strings
-    - gofmt         # formatting
-    - goimports     # import ordering
-    - bodyclose     # unclosed HTTP response bodies
-    - whitespace    # spurious blank lines inside blocks
+    - errcheck
+    - govet
+    - staticcheck
+    - gosec
+    - misspell
+    - bodyclose
+    - whitespace
 
-linters-settings:
-  errcheck:
-    # Close() errors on HTTP bodies and file handles are rarely actionable.
-    exclude-functions:
-      - (io.ReadCloser).Close
-      - (io.Closer).Close
-      - (*os.File).Close
+  settings:
+    errcheck:
+      # Close() errors on HTTP bodies and file handles are rarely actionable.
+      exclude-functions:
+        - (io.ReadCloser).Close
+        - (io.Closer).Close
+        - (*os.File).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (github.com/fatih/color.Color).Fprint
+        - (github.com/fatih/color.Color).Fprintf
+        - (github.com/fatih/color.Color).Fprintln
+        - (*github.com/fatih/color.Color).Fprint
+        - (*github.com/fatih/color.Color).Fprintf
+        - (*github.com/fatih/color.Color).Fprintln
 
-  govet:
-    # Disable analysers that are too noisy for an initial release.
-    disable:
-      - fieldalignment  # struct field reordering — informational only
-      - shadow          # variable shadowing — too many false positives
+    govet:
+      # Disable analysers that are informational or too noisy for this alpha.
+      disable:
+        - fieldalignment
+        - shadow
 
-  gosec:
-    excludes:
-      - G304  # file inclusion via variable — intentional in bundle I/O
-      - G115  # uint-to-int conversion — false positive in range loops
+    gosec:
+      excludes:
+        - G304 # caller-selected path is required for bundle I/O
+        - G115 # safe integer conversions are bounded by Go collection sizes
 
-  misspell:
-    locale: US
+    misspell:
+      locale: US
 
-issues:
-  max-same-issues: 0
-  exclude-rules:
-    # Test files don't need security hardening or full error handling.
-    - path: "_test\\.go"
-      linters:
-        - gosec
-        - errcheck
+  exclusions:
+    generated: lax
+    rules:
+      # Test helpers don't need security hardening or full error handling.
+      - path: "_test\\.go"
+        linters:
+          - gosec
+          - errcheck
 
-    # Embedded UI static assets are not Go source.
-    - path: "server/ui/"
-      linters:
-        - all
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  exclusions:
+    generated: lax

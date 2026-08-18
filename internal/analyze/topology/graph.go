@@ -13,6 +13,7 @@
 package topology
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/paultanay/rewind/internal/model"
@@ -40,11 +41,23 @@ func Build(entities []model.Entity) *Graph {
 		parents:   make(map[string]string, len(entities)),
 		callEdges: make(map[string][]string),
 	}
-	for _, e := range entities {
+	for _, raw := range entities {
+		e := canonicalEntity(raw)
 		g.nodes[e.ID] = e
 		if e.Owner != "" {
 			g.parents[e.ID] = e.Owner
 			g.children[e.Owner] = append(g.children[e.Owner], e.ID)
+		}
+	}
+	for parent := range g.children {
+		sort.Strings(g.children[parent])
+	}
+	for _, e := range g.nodes {
+		for _, callee := range strings.Split(e.Labels["calls"], ",") {
+			callee = strings.TrimSpace(callee)
+			if callee != "" {
+				g.AddCallEdge(e.ID, callee)
+			}
 		}
 	}
 	return g
@@ -53,11 +66,23 @@ func Build(entities []model.Entity) *Graph {
 // AddCallEdge records a service-to-service call relationship (caller → callee).
 // This is populated from Tempo trace data.
 func (g *Graph) AddCallEdge(callerID, calleeID string) {
+	callerID = normalizeLookupID(callerID)
+	calleeID = normalizeLookupID(calleeID)
+	if callerID == "" || calleeID == "" || callerID == calleeID {
+		return
+	}
+	for _, existing := range g.callEdges[callerID] {
+		if existing == calleeID {
+			return
+		}
+	}
 	g.callEdges[callerID] = append(g.callEdges[callerID], calleeID)
+	sort.Strings(g.callEdges[callerID])
 }
 
 // Entity returns the entity for the given ID, or nil if not found.
 func (g *Graph) Entity(id string) *model.Entity {
+	id = normalizeLookupID(id)
 	if e, ok := g.nodes[id]; ok {
 		return &e
 	}
@@ -67,12 +92,10 @@ func (g *Graph) Entity(id string) *model.Entity {
 // RootAncestor walks the ownership chain upward and returns the topmost
 // ancestor ID (usually the Service). Returns id itself if no parent exists.
 func (g *Graph) RootAncestor(id string) string {
+	id = normalizeLookupID(id)
 	visited := map[string]bool{}
 	current := id
-	for {
-		if visited[current] {
-			break // cycle guard
-		}
+	for !visited[current] {
 		visited[current] = true
 		parent, ok := g.parents[current]
 		if !ok || parent == "" {
@@ -94,6 +117,8 @@ func (g *Graph) RootAncestor(id string) string {
 //	Upstream call-graph   → 0.5
 //	Unrelated             → 0.0
 func (g *Graph) ProximityScore(idA, idB string) float64 {
+	idA = normalizeLookupID(idA)
+	idB = normalizeLookupID(idB)
 	if idA == idB {
 		return 1.0
 	}
@@ -129,6 +154,7 @@ func (g *Graph) ProximityScore(idA, idB string) float64 {
 
 // Descendants returns all direct and indirect descendants of id (BFS).
 func (g *Graph) Descendants(id string) []string {
+	id = normalizeLookupID(id)
 	var result []string
 	queue := []string{id}
 	visited := map[string]bool{id: true}
@@ -148,6 +174,7 @@ func (g *Graph) Descendants(id string) []string {
 
 // Ancestors returns all direct and indirect ancestors of id (walk via parents).
 func (g *Graph) Ancestors(id string) []string {
+	id = normalizeLookupID(id)
 	var result []string
 	current := id
 	visited := map[string]bool{id: true}
@@ -169,11 +196,12 @@ func (g *Graph) AllEntities() []model.Entity {
 	for _, e := range g.nodes {
 		out = append(out, e)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
 
 // nsOf extracts the namespace component from an entity ID like "svc/shop/checkout"
-// or "pod/shop/checkout-abc". Returns empty string if the format is not recognised.
+// or "pod/shop/checkout-abc". Returns empty string if the format is not recognized.
 func nsOf(id string) string {
 	parts := strings.SplitN(id, "/", 3)
 	if len(parts) >= 2 {
@@ -186,6 +214,8 @@ func nsOf(id string) string {
 // undirected ownership+call graph. Returns math.MaxInt if no path exists.
 // Same entity → 0. Direct parent/child → 1.
 func (g *Graph) Distance(fromID, toID string) int {
+	fromID = normalizeLookupID(fromID)
+	toID = normalizeLookupID(toID)
 	if fromID == toID {
 		return 0
 	}
@@ -218,6 +248,8 @@ const maxInt = int(^uint(0) >> 1)
 // Reachable reports whether toID is reachable from fromID following directed
 // ownership edges (parent→child) and call edges (caller→callee).
 func (g *Graph) Reachable(fromID, toID string) bool {
+	fromID = normalizeLookupID(fromID)
+	toID = normalizeLookupID(toID)
 	if fromID == toID {
 		return true
 	}
@@ -242,6 +274,7 @@ func (g *Graph) Reachable(fromID, toID string) bool {
 // Adjacent returns all entity IDs directly connected to id in the undirected
 // ownership+call graph (parent, children, call peers).
 func (g *Graph) Adjacent(id string) []string {
+	id = normalizeLookupID(id)
 	return g.neighbors(id)
 }
 
@@ -274,6 +307,7 @@ func (g *Graph) neighbors(id string) []string {
 			}
 		}
 	}
+	sort.Strings(out)
 	return out
 }
 
@@ -293,5 +327,25 @@ func (g *Graph) directedNeighbors(id string) []string {
 	for _, callee := range g.callEdges[id] {
 		add(callee)
 	}
+	sort.Strings(out)
 	return out
+}
+
+func canonicalEntity(raw model.Entity) model.Entity {
+	e := raw
+	if canonical, kind, err := model.NormalizeEntityID(e.ID); err == nil {
+		e.ID = canonical
+		if e.Kind == model.EntityKindUnknown {
+			e.Kind = kind
+		}
+	}
+	e.Owner = normalizeLookupID(e.Owner)
+	return e
+}
+
+func normalizeLookupID(id string) string {
+	if canonical, _, err := model.NormalizeEntityID(id); err == nil {
+		return canonical
+	}
+	return id
 }

@@ -204,7 +204,7 @@ type Incident struct {
 }
 
 type Entity struct {              // node in the topology graph
-    ID    string                  // "svc/shop/checkout", "pod/shop/checkout-7d9f..."
+    ID    string                  // "service/shop/checkout", "pod/shop/checkout-7d9f..."
     Kind  EntityKind              // Service, Deployment, Pod, Node, Queue, Database
     Owner string                  // parent entity ID (pod → deployment → service)
     Labels map[string]string

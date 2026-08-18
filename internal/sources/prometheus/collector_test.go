@@ -102,14 +102,14 @@ func TestCollector_BasicCollection(t *testing.T) {
 	}
 
 	// Verify entity ID format.
-	if result.Entities[0].ID != "svc/shop/checkout" {
-		t.Errorf("entity ID = %q, want svc/shop/checkout", result.Entities[0].ID)
+	if result.Entities[0].ID != "service/shop/checkout" {
+		t.Errorf("entity ID = %q, want service/shop/checkout", result.Entities[0].ID)
 	}
 
 	// Every signal should reference the entity.
 	for _, sig := range result.Signals {
-		if sig.EntityID != "svc/shop/checkout" {
-			t.Errorf("signal entity ID = %q, want svc/shop/checkout", sig.EntityID)
+		if sig.EntityID != "service/shop/checkout" {
+			t.Errorf("signal entity ID = %q, want service/shop/checkout", sig.EntityID)
 		}
 		if sig.Metric == "" {
 			t.Error("signal metric name is empty")
@@ -183,7 +183,7 @@ func TestCollector_ServerError(t *testing.T) {
 
 func TestCollector_ContextCancelled(t *testing.T) {
 	t.Parallel()
-	// Slow server — context cancelled before response.
+	// Slow server — context canceled before response.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(5 * time.Second)
 		w.WriteHeader(http.StatusOK)
@@ -210,6 +210,51 @@ func TestCollector_Name(t *testing.T) {
 	c := &prom.Collector{URL: "http://localhost:9090", Version: "test"}
 	if c.Name() != "prometheus" {
 		t.Errorf("Name() = %q, want prometheus", c.Name())
+	}
+}
+
+func TestCollector_EmptyNamespaceScopeStillQueries(t *testing.T) {
+	t.Parallel()
+	base := float64(time.Date(2026, 7, 9, 14, 0, 0, 0, time.UTC).Unix())
+	srv := serveFixture(t, [][2]float64{{base, 1}, {base + 60, 2}, {base + 120, 3}})
+	c := &prom.Collector{URL: srv.URL, Version: "test"}
+	window := model.TimeRange{From: time.Unix(int64(base), 0).UTC(), To: time.Unix(int64(base)+120, 0).UTC()}
+
+	result, err := c.Collect(context.Background(), model.Scope{Services: []string{"checkout"}}, window)
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+	if len(result.Signals) == 0 {
+		t.Fatal("empty namespace scope produced no signals")
+	}
+	if result.Signals[0].EntityID != "service/*/checkout" {
+		t.Fatalf("signal entity ID = %q, want service/*/checkout for an unscoped namespace", result.Signals[0].EntityID)
+	}
+}
+
+func TestCollectorHonorsQueryEntityKinds(t *testing.T) {
+	t.Parallel()
+	base := float64(time.Date(2026, 7, 9, 14, 0, 0, 0, time.UTC).Unix())
+	srv := serveFixture(t, [][2]float64{{base, 1}, {base + 60, 2}, {base + 120, 3}})
+	c := &prom.Collector{
+		URL:     srv.URL,
+		Version: "test",
+		ExtraQueries: []prom.QueryTemplate{{
+			Metric:      "test.node.only",
+			PromQL:      `vector(1)`,
+			Unit:        "value",
+			EntityKinds: []model.EntityKind{model.EntityKindNode},
+		}},
+	}
+	window := model.TimeRange{From: time.Unix(int64(base), 0).UTC(), To: time.Unix(int64(base)+120, 0).UTC()}
+	result, err := c.Collect(context.Background(), model.Scope{Namespaces: []string{"shop"}, Services: []string{"checkout"}}, window)
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+	for _, sig := range result.Signals {
+		if sig.Metric == "test.node.only" {
+			t.Fatal("node-only query was executed for a service target")
+		}
 	}
 }
 

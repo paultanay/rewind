@@ -1,11 +1,17 @@
 # Binaries
 /bin/
 /dist/
+!/internal/server/ui/dist/
+!/internal/server/ui/dist/**
 *.exe
 *.test
 
 # Go build cache
 *.out
+.gocache/
+.audit/
+*.prof
+*.trace
 coverage
 coverage.out
 coverage.html
@@ -15,6 +21,10 @@ coverage.html
 .vscode/
 *.swp
 *.swo
+
+# Frontend dependencies
+web/node_modules/
+web/dist/
 
 # Local config with credentials (committed example: rewind.yaml.example)
 rewind.yaml

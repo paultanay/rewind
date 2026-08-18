@@ -1,0 +1,35 @@
+.app-shell { min-height: 100vh; }
+.topbar { position: sticky; top: 0; z-index: 20; min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding: 0 clamp(16px, 3vw, 36px); background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar-left, .topbar-actions { display: flex; align-items: center; min-width: 0; gap: var(--space-5); }
+.brand-link { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; }
+.brand-mark { width: 34px; height: 34px; display: block; color: var(--brand); }
+.brand-wordmark { display: block; font-size: 13px; font-weight: 750; letter-spacing: .08em; line-height: 1.1; }
+.brand-caption { display: block; margin-top: 3px; color: var(--text-muted); font-size: 11px; line-height: 1.1; }
+.topbar-context { padding-left: var(--space-5); border-left: 1px solid var(--line); color: var(--text-muted); font-size: 12px; }
+.topbar-status { display: flex; align-items: center; gap: var(--space-3); color: var(--text-muted); font-size: 12px; }
+.topbar-status code { max-width: 220px; overflow: hidden; color: var(--text-subtle); text-overflow: ellipsis; white-space: nowrap; }
+.theme-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-subtle); cursor: pointer; font-size: 12px; }
+.theme-toggle:hover { border-color: var(--line-strong); background: var(--surface-raised); color: var(--text); }
+.theme-toggle .icon { width: 15px; height: 15px; }
+.workspace { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: calc(100vh - 64px); }
+.context-rail { padding: var(--space-6) var(--space-5); background: var(--canvas-raised); border-right: 1px solid var(--line); }
+.workspace-main { min-width: 0; max-width: 1480px; width: 100%; padding: 32px clamp(20px, 4vw, 56px) 72px; }
+.hero { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-6); }
+.hero-copy { min-width: 0; }
+.eyebrow { color: var(--brand); font-size: 10px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+.hero h1 { margin-top: 7px; overflow-wrap: anywhere; }
+.hero-description { max-width: 720px; margin-top: 10px; color: var(--text-subtle); font-size: 14px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 7px 16px; margin-top: 14px; color: var(--text-muted); font: 11px var(--font-mono); }
+.content-section { margin-top: 28px; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); margin-bottom: 11px; }
+.section-heading p, .section-heading small { color: var(--text-muted); font-size: 12px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 24px; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(290px, 360px); gap: 12px; align-items: start; }
+.evidence-panel { position: sticky; top: 82px; }
+.loading-state { min-height: calc(100vh - 64px); display: grid; place-items: center; color: var(--text-muted); }
+.loading-state::before { width: 18px; height: 18px; margin-right: 10px; border: 2px solid var(--line-strong); border-top-color: var(--brand); border-radius: 50%; content: ""; animation: loading-spin .8s linear infinite; }
+.fatal-state { max-width: 620px; margin: 80px auto; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1080px) { .workspace { grid-template-columns: 228px minmax(0, 1fr); } .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .detail-grid { grid-template-columns: 1fr; } .evidence-panel { position: static; } }
+@media (max-width: 720px) { .topbar { padding: 0 16px; } .topbar-context, .topbar-status code, .theme-toggle span:last-child { display: none; } .topbar-left, .topbar-actions { gap: 10px; } .workspace { display: block; } .context-rail { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px 16px; } .workspace-main { padding: 26px 16px 52px; } .hero { display: block; } .hero-status { margin-top: 16px; } .summary-grid { gap: 8px; } .detail-grid { gap: 10px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }

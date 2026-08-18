@@ -1,4 +1,7 @@
-# Configuration Reference
+# Configuration reference
+
+Configuration enables read-only source access for one investigation. Rewind
+does not store credentials or maintain a server-side configuration database.
 
 All configuration lives in `rewind.yaml`. Rewind searches for it in:
 1. Path from `--config` flag
@@ -147,3 +150,12 @@ Not configured / disabled:
 ```
 
 Exit code 3 if any configured source is unreachable.
+
+## Security notes
+
+- Keep `rewind.yaml` outside version control; use `rewind.yaml.example` as the
+  safe template.
+- Prefer `REWIND_*` environment variables or an injected secret at runtime.
+- Use read-only tokens and avoid placing bearer tokens in shell history.
+- Review exported bundles before sharing them: source references and bounded
+  excerpts can expose internal names and URLs.

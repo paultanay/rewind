@@ -52,9 +52,7 @@ func Run(inc model.Incident, graph *topology.Graph) *model.Verdict {
 	calibrateConfidence(hypotheses)
 
 	// Step 5: sort best-first, cap at 3.
-	sort.Slice(hypotheses, func(i, j int) bool {
-		return hypotheses[i].Score > hypotheses[j].Score
-	})
+	sort.Slice(hypotheses, func(i, j int) bool { return hypothesisLess(hypotheses[i], hypotheses[j]) })
 	if len(hypotheses) > 3 {
 		hypotheses = hypotheses[:3]
 	}
@@ -140,8 +138,20 @@ func assembleHypotheses(ctx RuleContext, edges []Edge) []model.Hypothesis {
 		byKey[k] = append(byKey[k], e)
 	}
 
+	keys := make([]hypoKey, 0, len(byKey))
+	for key := range byKey {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].triggerEventID != keys[j].triggerEventID {
+			return keys[i].triggerEventID < keys[j].triggerEventID
+		}
+		return keys[i].ruleID < keys[j].ruleID
+	})
+
 	var hypotheses []model.Hypothesis
-	for key, group := range byKey {
+	for _, key := range keys {
+		group := byKey[key]
 		h := buildHypothesis(ctx, key.triggerEventID, key.ruleID, group)
 		hypotheses = append(hypotheses, h)
 	}
@@ -256,9 +266,7 @@ func calibrateConfidence(hypotheses []model.Hypothesis) {
 	if len(hypotheses) == 0 {
 		return
 	}
-	sort.Slice(hypotheses, func(i, j int) bool {
-		return hypotheses[i].Score > hypotheses[j].Score
-	})
+	sort.Slice(hypotheses, func(i, j int) bool { return hypothesisLess(hypotheses[i], hypotheses[j]) })
 	best := hypotheses[0].Score
 
 	for i := range hypotheses {
@@ -295,7 +303,12 @@ func collectNotableAnomalies(inc model.Incident) []string {
 			all = append(all, scored{desc, cp.Score * cp.Magnitude})
 		}
 	}
-	sort.Slice(all, func(i, j int) bool { return all[i].score > all[j].score })
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].score != all[j].score {
+			return all[i].score > all[j].score
+		}
+		return all[i].desc < all[j].desc
+	})
 	var out []string
 	for i, s := range all {
 		if i >= 5 {
@@ -304,4 +317,19 @@ func collectNotableAnomalies(inc model.Incident) []string {
 		out = append(out, s.desc)
 	}
 	return out
+}
+
+func hypothesisLess(a, b model.Hypothesis) bool {
+	if a.Score != b.Score {
+		return a.Score > b.Score
+	}
+	if a.TriggerEventID != b.TriggerEventID {
+		return a.TriggerEventID < b.TriggerEventID
+	}
+	aRules := strings.Join(a.RuleIDs, ",")
+	bRules := strings.Join(b.RuleIDs, ",")
+	if aRules != bRules {
+		return aRules < bRules
+	}
+	return a.Explanation < b.Explanation
 }

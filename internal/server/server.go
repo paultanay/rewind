@@ -66,7 +66,7 @@ func (s *Server) Addr() string {
 }
 
 // Serve starts the HTTP server in the foreground. It returns when the
-// context is cancelled or the server encounters a fatal error.
+// context is canceled or the server encounters a fatal error.
 func (s *Server) Serve(ctx context.Context) error {
 	errCh := make(chan error, 1)
 	go func() {
@@ -120,7 +120,7 @@ func (s *Server) routes() http.Handler {
 			http.Error(w, "UI not available — run 'make build-ui' first", http.StatusServiceUnavailable)
 			return
 		}
-		defer idx.Close()
+		defer func() { _ = idx.Close() }()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = io.Copy(w, idx)
 	})

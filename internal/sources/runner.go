@@ -62,7 +62,12 @@ func RunAll(
 				SignalCount: len(cr.Signals),
 			}
 			if err != nil {
-				report.Status = model.SourceStatusFailed
+				hasData := len(cr.Entities) > 0 || len(cr.Events) > 0 || len(cr.Signals) > 0
+				if hasData {
+					report.Status = model.SourceStatusPartial
+				} else {
+					report.Status = model.SourceStatusFailed
+				}
 				report.Error = err.Error()
 			} else {
 				report.Status = model.SourceStatusOK
@@ -85,8 +90,13 @@ func RunAll(
 		out.Events = append(out.Events, r.result.Events...)
 		out.Signals = append(out.Signals, r.result.Signals...)
 		out.Reports = append(out.Reports, r.report)
-		if len(r.result.RawFixture) > 0 {
-			out.RawSources[r.name] = r.result.RawFixture
+		fixture, err := EncodeFixture(r.name, r.result)
+		if err == nil {
+			out.RawSources[r.name] = fixture
+		} else if len(r.result.RawFixture) > 0 {
+			// Preserve a native fixture if it cannot be wrapped, so collection
+			// output remains exportable and the source error is still visible.
+			out.RawSources[r.name] = append([]byte(nil), r.result.RawFixture...)
 		}
 	}
 	return out

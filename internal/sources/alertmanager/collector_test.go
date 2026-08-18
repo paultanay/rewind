@@ -122,9 +122,9 @@ func TestCollector_Collect_AlertFired(t *testing.T) {
 	if ev.Title != "HighErrorRate" {
 		t.Errorf("expected title 'HighErrorRate', got %q", ev.Title)
 	}
-	// Entity should be svc/shop/checkout (app label)
-	if ev.EntityID != "svc/shop/checkout" {
-		t.Errorf("expected entity 'svc/shop/checkout', got %q", ev.EntityID)
+	// Entity should be service/shop/checkout (app label)
+	if ev.EntityID != "service/shop/checkout" {
+		t.Errorf("expected entity 'service/shop/checkout', got %q", ev.EntityID)
 	}
 	// SourceRef should carry the generatorURL
 	if ev.SourceRef.URL != "http://prometheus:9090/alerts" {
@@ -133,6 +133,46 @@ func TestCollector_Collect_AlertFired(t *testing.T) {
 	// No signals from alertmanager
 	if len(result.Signals) != 0 {
 		t.Errorf("alertmanager should produce no signals, got %d", len(result.Signals))
+	}
+}
+
+func TestCollector_Collect_UsesRegexFiltersForMultipleScopeValues(t *testing.T) {
+	startsAt := base.Add(5 * time.Minute).Format(time.RFC3339Nano)
+	alerts := []amAlert{{
+		Fingerprint: "fp-multi-scope",
+		Status: struct {
+			State string `json:"state"`
+		}{"active"},
+		StartsAt: startsAt,
+		Labels: map[string]string{
+			"alertname": "CheckoutDependencyErrors",
+			"namespace": "shop",
+			"app":       "checkout",
+		},
+	}}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		filters := r.URL.Query()["filter"]
+		if len(filters) != 2 {
+			t.Errorf("got %d filters, want one namespace and one service regex filter: %v", len(filters), filters)
+		}
+		if len(filters) == 2 && filters[1] != `app=~"^(checkout|payments|inventory)$"` {
+			t.Errorf("service filter = %q, want regex matcher", filters[1])
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, buildAlerts(alerts))
+	}))
+	defer srv.Close()
+
+	c := alertmanager.New(alertmanager.Config{URL: srv.URL}, "test")
+	scope := model.Scope{Namespaces: []string{"shop"}, Services: []string{"checkout", "payments", "inventory"}}
+	window := model.TimeRange{From: base, To: base.Add(30 * time.Minute)}
+	result, err := c.Collect(t.Context(), scope, window)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Events) != 1 {
+		t.Fatalf("got %d events, want 1", len(result.Events))
 	}
 }
 

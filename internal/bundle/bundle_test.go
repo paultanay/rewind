@@ -159,17 +159,22 @@ func TestDoubleExportIdentical(t *testing.T) {
 	// Fix CreatedAt so the two exports are truly identical.
 	inc.Meta.CreatedAt = time.Date(2026, 7, 9, 14, 20, 0, 0, time.UTC)
 
-	var buf1, buf2 bytes.Buffer
-	if err := bundle.ExportTo(inc, nil, &buf1); err != nil {
+	var buf1 bytes.Buffer
+	rawSources := map[string][]byte{
+		"zeta":  []byte(`{"source":"zeta"}`),
+		"alpha": []byte(`{"source":"alpha"}`),
+	}
+	if err := bundle.ExportTo(inc, rawSources, &buf1); err != nil {
 		t.Fatalf("first export: %v", err)
 	}
-	if err := bundle.ExportTo(inc, nil, &buf2); err != nil {
-		t.Fatalf("second export: %v", err)
-	}
-
-	if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
-		t.Errorf("two exports of identical incident produced different bytes (%d vs %d bytes)",
-			buf1.Len(), buf2.Len())
+	for i := 0; i < 50; i++ {
+		var next bytes.Buffer
+		if err := bundle.ExportTo(inc, rawSources, &next); err != nil {
+			t.Fatalf("export %d: %v", i, err)
+		}
+		if !bytes.Equal(buf1.Bytes(), next.Bytes()) {
+			t.Errorf("export %d differs from first export (%d vs %d bytes)", i, buf1.Len(), next.Len())
+		}
 	}
 }
 
@@ -195,5 +200,16 @@ func TestNewerSchemaRejected(t *testing.T) {
 	_, err := bundle.Read(&buf)
 	if err == nil {
 		t.Error("expected error for schema version newer than tool supports")
+	}
+}
+
+func TestUnsafeSourceNameRejected(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	err := bundle.ExportTo(makeTestIncident(), map[string][]byte{
+		"../escape": []byte(`{}`),
+	}, &buf)
+	if err == nil {
+		t.Fatal("expected unsafe source name to be rejected")
 	}
 }

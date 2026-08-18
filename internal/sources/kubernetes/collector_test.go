@@ -2,13 +2,16 @@ package kubernetes_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/paultanay/rewind/internal/model"
 	k8scol "github.com/paultanay/rewind/internal/sources/kubernetes"
@@ -246,6 +249,32 @@ func TestCollect_EmptyCluster(t *testing.T) {
 	}
 	if len(result.Events) != 0 || len(result.Entities) != 0 {
 		t.Errorf("expected empty result, got %d events %d entities", len(result.Events), len(result.Entities))
+	}
+}
+
+func TestCollect_ReportsNamespaceFailure(t *testing.T) {
+	t.Parallel()
+	cs := fake.NewSimpleClientset()
+	cs.PrependReactor("list", "events", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("events API unavailable")
+	})
+	c := newFakeCollector(cs)
+	_, err := c.Collect(context.Background(), model.Scope{Namespaces: []string{"shop"}}, window)
+	if err == nil {
+		t.Fatal("Collect returned nil error for a namespace collection failure")
+	}
+}
+
+func TestCollect_ReportsReplicaSetFailure(t *testing.T) {
+	t.Parallel()
+	cs := fake.NewSimpleClientset()
+	cs.PrependReactor("list", "replicasets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("replicaset API unavailable")
+	})
+	c := newFakeCollector(cs)
+	_, err := c.Collect(context.Background(), model.Scope{Namespaces: []string{"shop"}}, window)
+	if err == nil {
+		t.Fatal("Collect returned nil error for a ReplicaSet collection failure")
 	}
 }
 

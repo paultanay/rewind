@@ -137,7 +137,7 @@ evicted at 14:24. Both service error rates spike. RW006 fires.`,
 	},
 	"RW007": {
 		ID:         "RW007",
-		Name:       "Probe Failure → Restart Loop",
+		Name:       "Queue Lag → Consumer Latency",
 		Hypothesis: "A failing liveness or readiness probe caused repeated pod restarts.",
 		Description: `Links ProbeFailed events (liveness/readiness probe timeouts) to
 subsequent Restart events on the same pod. Useful for diagnosing
@@ -153,7 +153,7 @@ timeout) fails → pod restarted repeatedly. RW007 fires.`,
 	},
 	"RW008": {
 		ID:         "RW008",
-		Name:       "Log Burst → Error Spike Correlation",
+		Name:       "Scale Down → Saturation",
 		Hypothesis: "A burst of error-level log messages coincided with metric degradation.",
 		Description: `Links a Loki LogBurst event to a metric error.rate change-point on
 the same entity within 5 minutes. Acts as a corroborating bridge —
@@ -181,7 +181,7 @@ fragmenting the causal chain into noise.`,
 		Events:     []string{"RESTART"},
 		Window:     "10-minute sliding window; threshold ≥ 3 restarts",
 		ScoreRange: "0.60–0.85",
-		Example: `checkout-7d9f restarts 4× in 8 min. RW009 synthesises CRASH-LOOP at
+		Example: `checkout-7d9f restarts 4× in 8 min. RW009 synthesizes CRASH-LOOP at
 first restart timestamp and scores it as trigger for the error spike.`,
 		Reference: "Kubernetes CrashLoopBackOff; exponential back-off restart policy",
 	},

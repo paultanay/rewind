@@ -15,6 +15,7 @@ import (
 	"github.com/paultanay/rewind/internal/model"
 	"github.com/paultanay/rewind/internal/render/terminal"
 	"github.com/paultanay/rewind/internal/server"
+	"github.com/paultanay/rewind/internal/sources"
 )
 
 func newDemoCmd() *cobra.Command {
@@ -55,7 +56,7 @@ Examples:
 		"scenario to replay: bad-deploy|oom-cascade|node-pressure|cpu-throttle|false-positive")
 	cmd.Flags().BoolVar(&uiMode, "ui", false, "open the web UI instead of terminal output")
 	cmd.Flags().IntVar(&port, "port", 7750, "port for --ui mode (0 = random)")
-	cmd.Flags().StringVar(&savePath, "save", "",
+	cmd.Flags().StringVarP(&savePath, "save", "o", "",
 		"export the demo incident as a .rewind bundle to this path")
 	return cmd
 }
@@ -67,6 +68,10 @@ func runDemo(ctx context.Context, scenario string, uiMode bool, port int, savePa
 		os.Exit(ExitUsageError)
 	}
 
+	// Keep the source-normalized incident for replay before adding derived
+	// change-points and hypotheses.
+	rawIncident := inc
+
 	// Re-run the full analysis engine on the demo data.
 	inc = analyze.Run(inc)
 
@@ -74,7 +79,15 @@ func runDemo(ctx context.Context, scenario string, uiMode bool, port int, savePa
 
 	// Export bundle if --save was specified.
 	if savePath != "" {
-		if exportErr := bundle.Export(inc, nil, savePath); exportErr != nil {
+		rawFixture, fixtureErr := sources.EncodeFixture("demo", sources.CollectResult{
+			Entities: rawIncident.Entities,
+			Events:   rawIncident.Events,
+			Signals:  rawIncident.Signals,
+		})
+		if fixtureErr != nil {
+			return fmt.Errorf("demo fixture: %w", fixtureErr)
+		}
+		if exportErr := bundle.Export(inc, map[string][]byte{"demo": rawFixture}, savePath); exportErr != nil {
 			fmt.Fprintf(os.Stderr, "  warning: bundle export failed: %v\n", exportErr)
 		} else {
 			fmt.Fprintf(os.Stderr, "  bundle saved → %s\n", savePath)
@@ -132,7 +145,7 @@ func buildDemoIncident(scenario string) (model.Incident, error) {
 // ─── Scenario: bad-deploy ─────────────────────────────────────────────────────
 
 func badDeployScenario(base time.Time, window model.TimeRange, meta model.Meta) model.Incident {
-	svc := "svc/shop/checkout"
+	svc := model.NewEntityID(model.EntityKindService, "shop", "checkout")
 	return model.Incident{
 		ID: "demo-bad-deploy-001", Window: window, Meta: meta,
 		Scope: model.Scope{Namespaces: []string{"shop"}, Services: []string{"checkout"}},
@@ -193,7 +206,7 @@ func badDeployScenario(base time.Time, window model.TimeRange, meta model.Meta) 
 // ─── Scenario: oom-cascade ────────────────────────────────────────────────────
 
 func oomCascadeScenario(base time.Time, window model.TimeRange, meta model.Meta) model.Incident {
-	svc := "svc/shop/checkout"
+	svc := model.NewEntityID(model.EntityKindService, "shop", "checkout")
 	pod := "pod/shop/checkout-7d9f-xk2p9"
 	return model.Incident{
 		ID: "demo-oom-cascade-001", Window: window, Meta: meta,
@@ -271,7 +284,7 @@ func oomCascadeScenario(base time.Time, window model.TimeRange, meta model.Meta)
 
 func nodePressureScenario(base time.Time, window model.TimeRange, meta model.Meta) model.Incident {
 	node := "node/worker-2"
-	svc := "svc/shop/checkout"
+	svc := model.NewEntityID(model.EntityKindService, "shop", "checkout")
 	pod := "pod/shop/checkout-7d9f-abc"
 	return model.Incident{
 		ID: "demo-node-pressure-001", Window: window, Meta: meta,
@@ -338,7 +351,7 @@ func nodePressureScenario(base time.Time, window model.TimeRange, meta model.Met
 // ─── Scenario: cpu-throttle ───────────────────────────────────────────────────
 
 func cpuThrottleScenario(base time.Time, window model.TimeRange, meta model.Meta) model.Incident {
-	svc := "svc/shop/recommendation"
+	svc := model.NewEntityID(model.EntityKindService, "shop", "recommendation")
 	return model.Incident{
 		ID: "demo-cpu-throttle-001", Window: window, Meta: meta,
 		Scope: model.Scope{Namespaces: []string{"shop"}, Services: []string{"recommendation"}},
@@ -377,7 +390,7 @@ func cpuThrottleScenario(base time.Time, window model.TimeRange, meta model.Meta
 // ─── Scenario: false-positive ─────────────────────────────────────────────────
 
 func falsePositiveScenario(base time.Time, window model.TimeRange, meta model.Meta) model.Incident {
-	svc := "svc/shop/frontend"
+	svc := model.NewEntityID(model.EntityKindService, "shop", "frontend")
 	return model.Incident{
 		ID: "demo-false-positive-001", Window: window, Meta: meta,
 		Scope: model.Scope{Namespaces: []string{"shop"}, Services: []string{"frontend"}},

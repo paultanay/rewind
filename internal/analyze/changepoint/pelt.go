@@ -12,7 +12,7 @@ import (
 //	Killick, R., Fearnhead, P., & Eckley, I. A. (2012). Optimal detection of
 //	changepoints with a linear computational cost. JASA, 107(500), 1590-1598.
 //
-// The algorithm finds the globally optimal segmentation minimising:
+// The algorithm finds the globally optimal segmentation minimizing:
 //
 //	sum_i [ cost(segment_i) ] + n_segments × penalty
 //
@@ -101,7 +101,7 @@ func (p *PELT) Detect(pts, _ []model.Point) []model.ChangePoint {
 	candidates := []int{0}
 
 	for tStar := minSeg; tStar <= n; tStar++ {
-		// Find the candidate that minimises F[t] + cost(t, tStar) + penalty.
+		// Find the candidate that minimizes F[t] + cost(t, tStar) + penalty.
 		bestCost := math.Inf(1)
 		bestT := -1
 		for _, t := range candidates {
